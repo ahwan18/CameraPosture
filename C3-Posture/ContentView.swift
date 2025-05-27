@@ -51,7 +51,7 @@ struct ContentView: View {
                         cameraViewModel.targetPersonBox = cameraViewModel.personBoundingBox
                         cameraViewModel.isSetupMode = false
                     }) {
-                        Text("Set Person")
+                        Text("Set")
                             .font(.title2)
                             .bold()
                             .foregroundColor(.white)
