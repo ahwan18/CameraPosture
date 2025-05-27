@@ -1,7 +1,10 @@
 import Foundation
 import UIKit
 
-class PosturesManager {
+class PosturesManager: ObservableObject {
+    @Published var postures: [Posture] = []
+    private let fileManager = FileManager.default
+    
     static let shared = PosturesManager()
     
     // Simple structure to represent pose info without dependencies
@@ -32,6 +35,8 @@ class PosturesManager {
         
         // Copy default postures if needed
         copyDefaultPosturesIfNeeded()
+        
+        loadPostures()
     }
     
     private func ensurePosturesDirectory() {
@@ -195,4 +200,64 @@ class PosturesManager {
         
         return nil
     }
+    
+    func loadPostures() {
+        guard let posturesURL = getPosturesDirectoryURL() else { return }
+        
+        do {
+            let contents = try fileManager.contentsOfDirectory(at: posturesURL, includingPropertiesForKeys: nil)
+            postures = contents.compactMap { url -> Posture? in
+                guard let image = UIImage(contentsOfFile: url.path) else { return nil }
+                return Posture(name: url.deletingPathExtension().lastPathComponent, image: image)
+            }
+        } catch {
+            print("Error loading postures: \(error)")
+        }
+    }
+    
+    func addNewPosture(image: UIImage, name: String) {
+        guard let posturesURL = getPosturesDirectoryURL() else { return }
+        let sanitizedName = name.replacingOccurrences(of: " ", with: "_")
+        let fileURL = posturesURL.appendingPathComponent("\(sanitizedName).jpg")
+        
+        // Save image to file
+        if let imageData = image.jpegData(compressionQuality: 0.8) {
+            do {
+                try imageData.write(to: fileURL)
+                // Add to postures array
+                let newPosture = Posture(name: sanitizedName, image: image)
+                DispatchQueue.main.async {
+                    self.postures.append(newPosture)
+                }
+            } catch {
+                print("Error saving posture: \(error)")
+            }
+        }
+    }
+    
+    private func getPosturesDirectoryURL() -> URL? {
+        guard let projectURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        
+        let posturesURL = projectURL.appendingPathComponent("Postures")
+        
+        // Create directory if it doesn't exist
+        if !fileManager.fileExists(atPath: posturesURL.path) {
+            do {
+                try fileManager.createDirectory(at: posturesURL, withIntermediateDirectories: true)
+            } catch {
+                print("Error creating Postures directory: \(error)")
+                return nil
+            }
+        }
+        
+        return posturesURL
+    }
+}
+
+struct Posture: Identifiable {
+    let id = UUID()
+    let name: String
+    let image: UIImage
 } 

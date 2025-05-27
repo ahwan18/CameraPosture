@@ -158,9 +158,7 @@ struct ContentView: View {
                 viewModel: poseSelectionViewModel,
                 isPresented: $showingPoseSelection,
                 onSelectPose: { pose in
-                    if let image = pose.image {
-                        cameraViewModel.setReferencePose(image, name: pose.name)
-                    }
+                    cameraViewModel.setReferencePose(pose.image, name: pose.name)
                 }
             )
         }

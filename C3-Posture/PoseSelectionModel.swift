@@ -23,30 +23,20 @@ struct PoseOption: Identifiable {
 
 // ViewModel for pose selection
 class PoseSelectionViewModel: ObservableObject {
-    @Published var availablePoses: [PoseOption] = []
-    @Published var selectedPose: PoseOption?
+    @Published var postures: [Posture] = []
+    private let posturesManager = PosturesManager.shared
     
     init() {
-        loadAvailablePoses()
+        loadPostures()
     }
     
-    func loadAvailablePoses() {
-        // Get all pose info from the PosturesManager
-        let poseInfos = PosturesManager.shared.getAllPostures()
-        
-        // Convert to PoseOption objects
-        availablePoses = poseInfos.map { PoseOption(from: $0) }
-        
-        // If no poses found, add defaults (should not happen since manager handles this)
-        if availablePoses.isEmpty {
-            availablePoses = [
-                PoseOption(name: "Pose 1", imageName: "p1.jpg"),
-                PoseOption(name: "Pose 2", imageName: "p2.png")
-            ]
-        }
+    func loadPostures() {
+        posturesManager.loadPostures() // Ensure PosturesManager has latest data
+        postures = posturesManager.postures
     }
     
-    func selectPose(_ pose: PoseOption) {
-        selectedPose = pose
+    func addNewPose(image: UIImage, name: String) {
+        posturesManager.addNewPosture(image: image, name: name)
+        loadPostures() // Reload postures immediately after adding
     }
 } 

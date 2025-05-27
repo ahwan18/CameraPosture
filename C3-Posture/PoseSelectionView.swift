@@ -1,70 +1,125 @@
 import SwiftUI
+import PhotosUI
 
 struct PoseSelectionView: View {
     @ObservedObject var viewModel: PoseSelectionViewModel
     @Binding var isPresented: Bool
-    var onSelectPose: (PoseOption) -> Void
+    let onSelectPose: (Posture) -> Void
+    
+    @State private var showingImagePicker = false
+    @State private var showingNameInput = false
+    @State private var newPostureName = ""
+    @State private var selectedImage: UIImage?
+    @State private var selectedItems: [PhotosPickerItem] = []
     
     var body: some View {
         NavigationView {
             VStack {
-                if viewModel.availablePoses.isEmpty {
-                    Text("No poses available")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                        .padding()
+                if viewModel.postures.isEmpty {
+                    ContentUnavailableView(
+                        "No Postures",
+                        systemImage: "photo.on.rectangle",
+                        description: Text("Add your first posture by tapping the + button")
+                    )
                 } else {
                     ScrollView {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 20) {
-                            ForEach(viewModel.availablePoses) { pose in
-                                PoseItemView(pose: pose)
-                                    .onTapGesture {
-                                        viewModel.selectPose(pose)
-                                        onSelectPose(pose)
-                                        isPresented = false
-                                    }
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: 16) {
+                            ForEach(viewModel.postures) { pose in
+                                PoseItemView(pose: pose) {
+                                    onSelectPose(pose)
+                                    isPresented = false
+                                }
                             }
                         }
                         .padding()
                     }
                 }
             }
-            .navigationTitle("Select a Pose")
-            .navigationBarItems(trailing: Button("Cancel") {
-                isPresented = false
-            })
+            .navigationTitle("Select Pose")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        isPresented = false
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingImagePicker = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+        }
+        .onAppear {
+            viewModel.loadPostures() // Refresh postures when view appears
+        }
+        .photosPicker(isPresented: $showingImagePicker,
+                     selection: $selectedItems,
+                     maxSelectionCount: 1,
+                     matching: .images)
+        .onChange(of: selectedItems) { items in
+            guard let item = items.first else { return }
+            loadTransferable(from: item)
+        }
+        .alert("Name Your Pose", isPresented: $showingNameInput) {
+            TextField("Pose Name", text: $newPostureName)
+            Button("Cancel", role: .cancel) {
+                selectedImage = nil
+                newPostureName = ""
+                selectedItems = []
+            }
+            Button("Save") {
+                if let image = selectedImage {
+                    viewModel.addNewPose(image: image, name: newPostureName)
+                }
+                selectedImage = nil
+                newPostureName = ""
+                selectedItems = []
+            }
+        }
+    }
+    
+    private func loadTransferable(from imageSelection: PhotosPickerItem) {
+        imageSelection.loadTransferable(type: Data.self) { result in
+            switch result {
+            case .success(let data):
+                if let data = data, let image = UIImage(data: data) {
+                    DispatchQueue.main.async {
+                        self.selectedImage = image
+                        self.showingNameInput = true
+                        self.selectedItems = []
+                    }
+                }
+            case .failure(let error):
+                print("Error loading image: \(error)")
+            }
         }
     }
 }
 
 struct PoseItemView: View {
-    let pose: PoseOption
+    let pose: Posture
+    let action: () -> Void
     
     var body: some View {
-        VStack {
-            if let image = pose.image {
-                Image(uiImage: image)
+        Button(action: action) {
+            VStack {
+                Image(uiImage: pose.image)
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 150)
+                    .scaledToFill()
+                    .frame(height: 200)
+                    .clipped()
                     .cornerRadius(10)
-                    .shadow(radius: 3)
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(height: 150)
-                    .cornerRadius(10)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 40))
-                            .foregroundColor(.gray)
-                    )
+                
+                Text(pose.name)
+                    .font(.caption)
+                    .foregroundColor(.primary)
             }
-            
-            Text(pose.name)
-                .font(.caption)
-                .fontWeight(.medium)
-                .lineLimit(1)
         }
     }
 }

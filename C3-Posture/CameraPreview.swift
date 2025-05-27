@@ -164,26 +164,76 @@ class PoseOverlayView: UIView {
     private func drawMatchIndicators(context: CGContext, userPose: VNHumanBodyPoseObservation, referencePose: VNHumanBodyPoseObservation, viewModel: CameraViewModel) {
         // Draw matching status for joints
         for (jointName, isMatching) in viewModel.jointMatches {
-            guard let joint = try? userPose.recognizedPoint(jointName),
-                  joint.confidence > 0.5 else {
+            guard let userJoint = try? userPose.recognizedPoint(jointName),
+                  let referenceJoint = try? referencePose.recognizedPoint(jointName),
+                  userJoint.confidence > 0.5,
+                  referenceJoint.confidence > 0.5 else {
                 continue
             }
             
             // Convert to view coordinates
-            let point = CGPoint(x: joint.location.x * bounds.width,
-                               y: (1 - joint.location.y) * bounds.height)
+            let userPoint = CGPoint(x: userJoint.location.x * bounds.width,
+                                  y: (1 - userJoint.location.y) * bounds.height)
+            let referencePoint = CGPoint(x: referenceJoint.location.x * bounds.width,
+                                       y: (1 - referenceJoint.location.y) * bounds.height)
+            
+            if !isMatching {
+                // Draw arrow from user joint to reference joint
+                drawArrow(context: context, from: userPoint, to: referencePoint)
+            }
             
             // Draw indicator based on matching status
             let color = isMatching ? UIColor.green : UIColor.red
             context.setFillColor(color.cgColor)
             
-            let circleRect = CGRect(x: point.x - 7, y: point.y - 7, width: 14, height: 14)
+            let circleRect = CGRect(x: userPoint.x - 7, y: userPoint.y - 7, width: 14, height: 14)
             context.fillEllipse(in: circleRect)
             
             // Draw white inner circle for contrast
             context.setFillColor(UIColor.white.cgColor)
-            let innerRect = CGRect(x: point.x - 3, y: point.y - 3, width: 6, height: 6)
+            let innerRect = CGRect(x: userPoint.x - 3, y: userPoint.y - 3, width: 6, height: 6)
             context.fillEllipse(in: innerRect)
         }
+    }
+    
+    private func drawArrow(context: CGContext, from startPoint: CGPoint, to endPoint: CGPoint) {
+        // Calculate arrow properties
+        let arrowLength: CGFloat = 20.0
+        let arrowAngle: CGFloat = CGFloat.pi / 6  // 30 degrees
+        
+        // Calculate direction vector
+        let dx = endPoint.x - startPoint.x
+        let dy = endPoint.y - startPoint.y
+        let distance = sqrt(dx * dx + dy * dy)
+        
+        // If points are too close, don't draw arrow
+        if distance < 10 { return }
+        
+        // Calculate unit vector
+        let unitX = dx / distance
+        let unitY = dy / distance
+        
+        // Calculate arrow head points
+        let arrowPoint1X = endPoint.x - arrowLength * (cos(arrowAngle) * unitX + sin(arrowAngle) * unitY)
+        let arrowPoint1Y = endPoint.y - arrowLength * (cos(arrowAngle) * unitY - sin(arrowAngle) * unitX)
+        let arrowPoint2X = endPoint.x - arrowLength * (cos(arrowAngle) * unitX - sin(arrowAngle) * unitY)
+        let arrowPoint2Y = endPoint.y - arrowLength * (cos(arrowAngle) * unitY + sin(arrowAngle) * unitX)
+        
+        // Set arrow style
+        context.setStrokeColor(UIColor.yellow.cgColor)
+        context.setLineWidth(2.0)
+        
+        // Draw arrow shaft
+        context.move(to: startPoint)
+        context.addLine(to: endPoint)
+        
+        // Draw arrow head
+        context.move(to: endPoint)
+        context.addLine(to: CGPoint(x: arrowPoint1X, y: arrowPoint1Y))
+        context.move(to: endPoint)
+        context.addLine(to: CGPoint(x: arrowPoint2X, y: arrowPoint2Y))
+        
+        // Stroke the arrow
+        context.strokePath()
     }
 } 
