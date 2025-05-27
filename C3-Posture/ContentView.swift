@@ -17,237 +17,141 @@ struct ContentView: View {
     @State private var showingPoseSelection = false
     
     var body: some View {
-        // ZStack menumpuk view-view di atas satu sama lain (seperti layer)
         ZStack {
-            // Layer 1: Preview kamera sebagai background
-            CameraPreview(viewModel: cameraViewModel)
-                .ignoresSafeArea() // Mengabaikan safe area agar kamera fullscreen
-            
-            // Layer 2: Kotak biru untuk menunjukkan area deteksi person (hanya muncul saat setup mode)
-            if cameraViewModel.isSetupMode, let box = cameraViewModel.personBoundingBox {
-                // GeometryReader untuk mendapatkan ukuran layar
-                GeometryReader { geo in
-                    let w = geo.size.width  // Lebar layar
-                    let h = geo.size.height // Tinggi layar
-                    
-                    // Konversi koordinat dari Vision (0-1) ke koordinat layar (pixel)
-                    // Vision menggunakan koordinat terbalik untuk Y, jadi perlu diflip
-                    let rect = CGRect(
-                        x: box.minX * w,           // X position
-                        y: (1 - box.maxY) * h,    // Y position (diflip)
-                        width: box.width * w,     // Lebar kotak
-                        height: box.height * h    // Tinggi kotak
-                    )
-                    
-                    // Menggambar kotak dengan garis biru
-                    Path { path in
-                        path.addRect(rect)
-                    }
-                    .stroke(Color.blue, lineWidth: 3)
-                }
-            }
-            
-            // Layer 3: Reference image overlay in pose matching mode
-            if cameraViewModel.isInPoseMatchingMode, let referenceImage = cameraViewModel.selectedReferenceImage {
-                VStack {
-                    HStack {
-                        Spacer()
-                        Image(uiImage: referenceImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 120, height: 120)
-                            .background(Color.black.opacity(0.5))
-                            .cornerRadius(8)
-                            .padding(8)
-                    }
-                    Spacer()
-                }
-            }
-            
-            // Layer 4: User Interface (tombol dan status)
-            VStack {
-                // Bagian atas: Tombol switch kamera
-                HStack {
-                    Spacer() // Mendorong tombol ke kanan
-                    
-                    // Mode selector
-                    Menu {
-                        Button(action: {
-                            cameraViewModel.isSetupMode = true
-                            cameraViewModel.exitPoseMatchingMode()
-                        }) {
-                            Label("Setup Mode", systemImage: "person.fill")
+            if cameraViewModel.isInPoseMatchingMode {
+                // Camera view with pose matching
+                ZStack {
+                    CameraPreview(viewModel: cameraViewModel)
+                        .ignoresSafeArea()
+                        .onAppear {
+                            // Ensure camera is running when view appears
+                            if !cameraViewModel.session.isRunning {
+                                cameraViewModel.startSession()
+                            }
                         }
-                        
-                        Button(action: {
-                            showingPoseSelection = true
-                        }) {
-                            Label("Match Pose", systemImage: "person.fill.viewfinder")
-                        }
-                    } label: {
-                        Image(systemName: cameraViewModel.isInPoseMatchingMode ? "person.fill.viewfinder" : "person.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.7)) // Background semi-transparan
-                            .clipShape(Circle()) // Bentuk bulat
-                    }
-                    .padding()
-                }
-                
-                Spacer() // Mendorong konten ke bawah
-                
-                // Bagian bawah: Status dan kontrol berdasarkan mode aplikasi
-                if cameraViewModel.isSetupMode {
-                    // MODE SETUP: Tombol untuk menyimpan posisi target
-                    Button(action: {
-                        // Simpan posisi bounding box sebagai target
-                        cameraViewModel.targetPersonBox = cameraViewModel.personBoundingBox
-                        // Keluar dari setup mode dan mulai evaluasi postur
-                        cameraViewModel.isSetupMode = false
-                    }) {
-                        Text("Set")
-                            .font(.title2)
-                            .bold()
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.blue)
-                            .cornerRadius(15)
-                    }
-                    .padding(.bottom, 50)
-                } else if cameraViewModel.isInPoseMatchingMode {
-                    // MODE MATCHING: Menampilkan status deteksi dan postur
-                    if !cameraViewModel.isPersonDetected {
-                        // Tidak ada orang yang terdeteksi
-                        Text("No person detected")
-                            .font(.title2)
-                            .bold()
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.7))
-                            .cornerRadius(15)
-                            .padding(.bottom, 50)
-                    } else if cameraViewModel.currentPoseObservation == nil {
-                        // Orang terdeteksi tapi pose tidak bisa dianalisis
-                        Text("Stand in frame for pose detection")
-                            .font(.title2)
-                            .bold()
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.7))
-                            .cornerRadius(15)
-                            .padding(.bottom, 50)
-                    } else {
-                        VStack(spacing: 10) {
-                            // Match percentage and status
+                    
+                    // Reference image overlay
+                    if let referenceImage = cameraViewModel.selectedReferenceImage {
+                        VStack {
                             HStack {
-                                Image(systemName: cameraViewModel.overallPoseMatchStatus ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(cameraViewModel.overallPoseMatchStatus ? .green : .red)
-                                
-                                VStack(alignment: .leading) {
-                                    Text(cameraViewModel.overallPoseMatchStatus ? "Great match!" : "Keep adjusting...")
-                                        .font(.headline)
-                                        .bold()
-                                        .foregroundColor(.white)
-                                    
-                                    Text("Match: \(Int(cameraViewModel.poseMatchPercentage))%")
-                                        .font(.subheadline)
-                                        .foregroundColor(.white)
-                                }
+                                Spacer()
+                                Image(uiImage: referenceImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 120, height: 120)
+                                    .background(Color.black.opacity(0.5))
+                                    .cornerRadius(8)
+                                    .padding(8)
+                            }
+                            Spacer()
+                        }
+                    }
+                    
+                    // Controls and status
+                    VStack {
+                        HStack {
+                            // Camera switch button
+                            Button(action: {
+                                cameraViewModel.switchCamera()
+                            }) {
+                                Image(systemName: "camera.rotate.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.white)
+                                    .padding()
+                                    .background(Color.black.opacity(0.7))
+                                    .clipShape(Circle())
                             }
                             .padding()
-                            .background(Color.black.opacity(0.7))
-                            .cornerRadius(15)
+                            
+                            Spacer()
                             
                             // Exit button
                             Button(action: {
                                 cameraViewModel.exitPoseMatchingMode()
                             }) {
-                                Text("Exit Pose Matching")
-                                    .font(.headline)
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 24))
                                     .foregroundColor(.white)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 10)
-                                    .background(Color.red.opacity(0.8))
-                                    .cornerRadius(10)
+                                    .padding()
+                                    .background(Color.black.opacity(0.7))
+                                    .clipShape(Circle())
                             }
+                            .padding()
                         }
-                        .padding(.bottom, 30)
-                    }
-                } else {
-                    // MODE EVALUASI: Menampilkan status deteksi dan postur
-                    
-                    if !cameraViewModel.isPersonDetected {
-                        // Tidak ada orang yang terdeteksi
-                        Text("No person detected")
-                            .font(.title2)
-                            .bold()
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.7))
-                            .cornerRadius(15)
-                            .padding(.bottom, 50)
-                    } else if cameraViewModel.currentPoseObservation == nil {
-                        // Orang terdeteksi tapi pose tidak bisa dianalisis
-                        Text("Please stand in the same position")
-                            .font(.title2)
-                            .bold()
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.7))
-                            .cornerRadius(15)
-                            .padding(.bottom, 50)
-                    } else {
-                        // Orang dan pose terdeteksi - tampilkan status postur
-                        HStack {
-                            // Icon status (centang hijau = bagus, X merah = tidak bagus)
-                            Image(systemName: cameraViewModel.isPostureGood ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .font(.system(size: 50))
-                                .foregroundColor(cameraViewModel.isPostureGood ? .green : .red)
-                            
-                            // Pesan status postur
-                            Text(cameraViewModel.isPostureGood ? "Good Posture!" : "Raise your arm to 30°")
+                        
+                        Spacer()
+                        
+                        // Status display
+                        if !cameraViewModel.isPersonDetected {
+                            Text("No person detected")
                                 .font(.title2)
                                 .bold()
                                 .foregroundColor(.white)
-                        }
-                        .padding()
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(15)
-                        .padding(.bottom, 10)
-                        
-                        // Detail error untuk tangan kiri/kanan (jika ada yang salah)
-                        if !cameraViewModel.isLeftElbowGood || !cameraViewModel.isRightElbowGood {
-                            VStack(spacing: 4) {
-                                if !cameraViewModel.isLeftElbowGood {
-                                    Text("Left arm not at 30°")
-                                        .foregroundColor(.red)
-                                        .bold()
+                                .padding()
+                                .background(Color.black.opacity(0.7))
+                                .cornerRadius(15)
+                        } else if cameraViewModel.currentPoseObservation == nil {
+                            Text("Stand in frame for pose detection")
+                                .font(.title2)
+                                .bold()
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.black.opacity(0.7))
+                                .cornerRadius(15)
+                        } else {
+                            VStack(spacing: 10) {
+                                // Match percentage and status
+                                HStack {
+                                    Image(systemName: cameraViewModel.overallPoseMatchStatus ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                        .font(.system(size: 40))
+                                        .foregroundColor(cameraViewModel.overallPoseMatchStatus ? .green : .red)
+                                    
+                                    VStack(alignment: .leading) {
+                                        Text(cameraViewModel.overallPoseMatchStatus ? "Great match!" : "Keep adjusting...")
+                                            .font(.headline)
+                                            .bold()
+                                            .foregroundColor(.white)
+                                        
+                                        Text("Match: \(Int(cameraViewModel.poseMatchPercentage))%")
+                                            .font(.subheadline)
+                                            .foregroundColor(.white)
+                                    }
                                 }
-                                if !cameraViewModel.isRightElbowGood {
-                                    Text("Right arm not at 30°")
-                                        .foregroundColor(.red)
-                                        .bold()
-                                }
+                                .padding()
+                                .background(Color.black.opacity(0.7))
+                                .cornerRadius(15)
                             }
-                            .padding(8)
-                            .background(Color.black.opacity(0.7))
-                            .cornerRadius(10)
-                            .padding(.bottom, 30)
                         }
+                    }
+                    .padding(.bottom, 30)
+                }
+            } else {
+                // Pose selection view
+                VStack {
+                    Text("Select a Pose to Match")
+                        .font(.title)
+                        .padding()
+                    
+                    Button(action: {
+                        showingPoseSelection = true
+                    }) {
+                        Text("Choose Pose")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.blue)
+                            .cornerRadius(10)
+                    }
+                    .padding(.horizontal)
+                }
+                .onAppear {
+                    // Ensure camera is stopped when returning to pose selection
+                    if cameraViewModel.session.isRunning {
+                        cameraViewModel.stopSession()
                     }
                 }
             }
-        }
-        // Lifecycle events: apa yang terjadi saat view muncul/hilang
-        .onAppear {
-            // Mulai session kamera saat view muncul
-            cameraViewModel.startSession()
-        }
-        .onDisappear {
-            // Hentikan session kamera saat view hilang (untuk menghemat battery)
-            cameraViewModel.stopSession()
         }
         .sheet(isPresented: $showingPoseSelection) {
             PoseSelectionView(
@@ -263,7 +167,7 @@ struct ContentView: View {
     }
 }
 
-// Preview untuk SwiftUI Canvas (development tool)
+// Preview for SwiftUI Canvas
 #Preview {
     ContentView()
 }

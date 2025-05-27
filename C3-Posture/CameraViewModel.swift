@@ -12,12 +12,8 @@ class CameraViewModel: NSObject, ObservableObject {
     @Published var currentPoseObservation: VNHumanBodyPoseObservation?
     @Published var isPersonDetected = false
     @Published var personBoundingBox: CGRect?
-    @Published var isLeftElbowGood: Bool = true
-    @Published var isRightElbowGood: Bool = true
-    @Published var isSetupMode: Bool = true
-    @Published var targetPersonBox: CGRect? = nil
     
-    // New pose matching properties
+    // Pose matching properties
     @Published var selectedReferenceImage: UIImage?
     @Published var selectedReferenceName: String = ""
     @Published var isInPoseMatchingMode: Bool = false
@@ -85,7 +81,7 @@ class CameraViewModel: NSObject, ObservableObject {
         selectedReferenceName = name
         detectPoseInReferenceImage(poseImage)
         isInPoseMatchingMode = true
-        isSetupMode = false
+        startSession() // Start camera session when entering pose matching mode
     }
     
     private func detectPoseInReferenceImage(_ image: UIImage) {
@@ -117,6 +113,7 @@ class CameraViewModel: NSObject, ObservableObject {
     }
     
     func exitPoseMatchingMode() {
+        stopSession() // Stop camera session when exiting pose matching mode
         isInPoseMatchingMode = false
         selectedReferenceImage = nil
         selectedReferenceName = ""
@@ -205,8 +202,6 @@ class CameraViewModel: NSObject, ObservableObject {
 
         DispatchQueue.main.async {
             self.isPostureGood = leftIsGood && rightIsGood
-            self.isLeftElbowGood = leftIsGood
-            self.isRightElbowGood = rightIsGood
         }
     }
 
@@ -291,48 +286,16 @@ extension CameraViewModel: AVCaptureVideoDataOutputSampleBufferDelegate {
             var selectedBox: CGRect? = nil
             var selectedPose: VNHumanBodyPoseObservation? = nil
             
-            if isSetupMode {
-                // Setup mode: select person with highest confidence
-                let best = personObservations.max { $0.confidence < $1.confidence }
-                selectedBox = best?.boundingBox
-                
-                if let bestBox = selectedBox {
-                    selectedPose = poseObservations.min(by: {
-                        guard let c0 = poseCenter($0), let c1 = poseCenter($1) else { return false }
-                        let d0 = distance(boxCenter(bestBox), c0)
-                        let d1 = distance(boxCenter(bestBox), c1)
-                        return d0 < d1
-                    })
-                }
-            } else if let targetBox = targetPersonBox {
-                // Target mode: find person closest to target position
-                let best = personObservations.min(by: { 
-                    distance(boxCenter($0.boundingBox), boxCenter(targetBox)) < 
-                    distance(boxCenter($1.boundingBox), boxCenter(targetBox)) 
+            let best = personObservations.max { $0.confidence < $1.confidence }
+            selectedBox = best?.boundingBox
+            
+            if let bestBox = selectedBox {
+                selectedPose = poseObservations.min(by: {
+                    guard let c0 = poseCenter($0), let c1 = poseCenter($1) else { return false }
+                    let d0 = distance(boxCenter(bestBox), c0)
+                    let d1 = distance(boxCenter(bestBox), c1)
+                    return d0 < d1
                 })
-                selectedBox = best?.boundingBox
-                
-                if let bestBox = selectedBox {
-                    selectedPose = poseObservations.min(by: {
-                        guard let c0 = poseCenter($0), let c1 = poseCenter($1) else { return false }
-                        let d0 = distance(boxCenter(bestBox), c0)
-                        let d1 = distance(boxCenter(bestBox), c1)
-                        return d0 < d1
-                    })
-                }
-            } else {
-                // Default: select person with highest confidence
-                let best = personObservations.max { $0.confidence < $1.confidence }
-                selectedBox = best?.boundingBox
-                
-                if let bestBox = selectedBox {
-                    selectedPose = poseObservations.min(by: {
-                        guard let c0 = poseCenter($0), let c1 = poseCenter($1) else { return false }
-                        let d0 = distance(boxCenter(bestBox), c0)
-                        let d1 = distance(boxCenter(bestBox), c1)
-                        return d0 < d1
-                    })
-                }
             }
             
             // Update UI in main thread
@@ -341,9 +304,7 @@ extension CameraViewModel: AVCaptureVideoDataOutputSampleBufferDelegate {
                 self.personBoundingBox = selectedBox
                 self.currentPoseObservation = selectedPose
                 
-                if self.isSetupMode {
-                    self.isPostureGood = false
-                } else if let pose = selectedPose {
+                if let pose = selectedPose {
                     if self.isInPoseMatchingMode && self.referenceBodyPoseObservation != nil {
                         // In pose matching mode, compare with reference
                         self.compareWithReferencePose(pose)
