@@ -12,6 +12,11 @@ import SwiftUI
 // @main menandakan bahwa ini adalah struktur utama yang akan dijalankan pertama kali
 @main
 struct C3_PostureApp: App {
+    init() {
+        // Initialize the PosturesManager to ensure posture images are available
+        _ = PosturesManager.shared
+    }
+    
     // body adalah properti yang mengembalikan Scene (tampilan utama aplikasi)
     var body: some Scene {
         // WindowGroup adalah container untuk menampilkan view utama di dalam window
