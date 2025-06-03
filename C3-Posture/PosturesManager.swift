@@ -75,8 +75,8 @@ class PosturesManager: ObservableObject {
             print("Error checking for existing postures: \(error)")
         }
         
-        // Default posture files to copy from main bundle
-        let defaultPostures = ["p1.jpg", "p2.png"]
+        // Updated posture files to match your actual yoga images
+        let defaultPostures = ["yoga1.png", "yoga2.png", "yoga3.png"]
         
         // Try different source locations
         let possibleSourcePaths = [
@@ -128,7 +128,34 @@ class PosturesManager: ObservableObject {
     
     // Get all available postures
     func getAllPostures() -> [PoseInfo] {
+        // First try to load directly from bundle Resources/Postures
+        if let bundleURL = Bundle.main.url(forResource: "Postures", withExtension: nil, subdirectory: "Resources") {
+            do {
+                let fileURLs = try FileManager.default.contentsOfDirectory(at: bundleURL, includingPropertiesForKeys: nil)
+                let imageURLs = fileURLs.filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "png" }
+                
+                if !imageURLs.isEmpty {
+                    let poses = imageURLs.map { url in
+                        let filename = url.lastPathComponent
+                        let name = filename
+                            .replacingOccurrences(of: ".jpg", with: "")
+                            .replacingOccurrences(of: ".png", with: "")
+                            .capitalized
+                        
+                        return PoseInfo(name: name, filename: filename)
+                    }
+                    
+                    print("Loaded \(poses.count) poses from bundle Resources/Postures: \(poses.map { $0.filename })")
+                    return poses
+                }
+            } catch {
+                print("Error reading from bundle Resources/Postures: \(error)")
+            }
+        }
+        
+        // Fallback to documents directory
         guard let postureDirURL = posturesDirectoryURL else {
+            print("Could not get posture directory URL, using defaults")
             return defaultPoses()
         }
         
@@ -146,9 +173,10 @@ class PosturesManager: ObservableObject {
                 return PoseInfo(name: name, filename: filename)
             }
             
+            print("Loaded \(poses.count) poses from documents directory")
             return poses.isEmpty ? defaultPoses() : poses
         } catch {
-            print("Error getting postures: \(error)")
+            print("Error getting postures from documents: \(error)")
             return defaultPoses()
         }
     }
@@ -156,48 +184,55 @@ class PosturesManager: ObservableObject {
     // Default poses as fallback
     private func defaultPoses() -> [PoseInfo] {
         return [
-            PoseInfo(name: "Pose 1", filename: "p1.jpg"),
-            PoseInfo(name: "Pose 2", filename: "p2.png")
+            PoseInfo(name: "Yoga1", filename: "yoga1.png"),
+            PoseInfo(name: "Yoga2", filename: "yoga2.png"),
+            PoseInfo(name: "Yoga3", filename: "yoga3.png")
         ]
     }
     
     // Load a specific posture image
     func loadPostureImage(named imageName: String) -> UIImage? {
-        // First try documents directory
-        if let postureDir = posturesDirectoryURL {
-            let imageURL = postureDir.appendingPathComponent(imageName)
-            if FileManager.default.fileExists(atPath: imageURL.path) {
-                return UIImage(contentsOfFile: imageURL.path)
+        // First try in Resources/Postures bundle
+        if let bundlePath = Bundle.main.path(forResource: imageName, ofType: nil, inDirectory: "Resources/Postures") {
+            if let image = UIImage(contentsOfFile: bundlePath) {
+                print("Loaded \(imageName) from Resources/Postures")
+                return image
             }
         }
         
-        // Try in Resources/Postures
-        if let bundlePath = Bundle.main.path(forResource: imageName, ofType: nil, inDirectory: "Resources/Postures") {
-            return UIImage(contentsOfFile: bundlePath)
+        // Try documents directory
+        if let postureDir = posturesDirectoryURL {
+            let imageURL = postureDir.appendingPathComponent(imageName)
+            if FileManager.default.fileExists(atPath: imageURL.path) {
+                if let image = UIImage(contentsOfFile: imageURL.path) {
+                    print("Loaded \(imageName) from documents directory")
+                    return image
+                }
+            }
         }
         
         // Try in Postures
         if let bundlePath = Bundle.main.path(forResource: imageName, ofType: nil, inDirectory: "Postures") {
-            return UIImage(contentsOfFile: bundlePath)
+            if let image = UIImage(contentsOfFile: bundlePath) {
+                print("Loaded \(imageName) from Postures directory")
+                return image
+            }
         }
         
         // Try as resource directly
         if let image = UIImage(named: imageName) {
+            print("Loaded \(imageName) as named resource")
             return image
         }
         
-        // Try app bundle path directly
-        let bundleURL = Bundle.main.bundleURL.appendingPathComponent("Postures/\(imageName)")
-        if FileManager.default.fileExists(atPath: bundleURL.path) {
-            return UIImage(contentsOfFile: bundleURL.path)
+        // Try removing file extension and loading as named resource
+        let nameWithoutExtension = imageName.replacingOccurrences(of: ".png", with: "").replacingOccurrences(of: ".jpg", with: "")
+        if let image = UIImage(named: nameWithoutExtension) {
+            print("Loaded \(nameWithoutExtension) as named resource without extension")
+            return image
         }
         
-        // Try the actual root directory path
-        let rootPathURL = URL(fileURLWithPath: "/Users/agungkurniawan/Documents/GitHub/CameraPosture/Postures/\(imageName)")
-        if FileManager.default.fileExists(atPath: rootPathURL.path) {
-            return UIImage(contentsOfFile: rootPathURL.path)
-        }
-        
+        print("Could not load image: \(imageName)")
         return nil
     }
     
