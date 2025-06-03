@@ -2,6 +2,7 @@ import SwiftUI
 import AVFoundation
 import Vision
 import Combine
+import AudioToolbox
 
 // CameraViewModel for handling camera and pose detection
 class CameraViewModel: NSObject, ObservableObject {
@@ -21,6 +22,7 @@ class CameraViewModel: NSObject, ObservableObject {
     @Published var poseMatchPercentage: Double = 0.0
     @Published var jointMatches: [VNHumanBodyPoseObservation.JointName: Bool] = [:]
     @Published var overallPoseMatchStatus: Bool = false
+    @Published var onPoseMatched: (() -> Void)?  // Callback untuk notifikasi
     
     // Private properties
     private var videoDataOutput: AVCaptureVideoDataOutput?
@@ -138,6 +140,9 @@ class CameraViewModel: NSObject, ObservableObject {
         var totalJoints = 0
         var newJointMatches: [VNHumanBodyPoseObservation.JointName: Bool] = [:]
         
+        // Untuk tracking status sebelumnya
+        let previousJointMatches = self.jointMatches
+        
         for jointName in jointNames {
             do {
                 let userJoint = try userPose.recognizedPoint(jointName)
@@ -157,6 +162,9 @@ class CameraViewModel: NSObject, ObservableObject {
                     
                     if isMatch {
                         matchCount += 1
+                    } else {
+                        // Jika joint salah, mainkan suara system sesuai joint
+                        playSystemSound(for: jointName)
                     }
                 }
             } catch {
@@ -171,8 +179,37 @@ class CameraViewModel: NSObject, ObservableObject {
         DispatchQueue.main.async {
             self.jointMatches = newJointMatches
             self.poseMatchPercentage = percentage
-            self.overallPoseMatchStatus = percentage >= 70.0 // Consider a good match if >= 70%
+            let newMatchStatus = percentage >= 90.0 // Ubah threshold ke 90%
+            
+            // Jika status berubah dari false ke true (baru mencapai 90%)
+            if !self.overallPoseMatchStatus && newMatchStatus {
+                self.onPoseMatched?() // Panggil callback
+            }
+            
+            self.overallPoseMatchStatus = newMatchStatus
         }
+    }
+    
+    // Fungsi untuk memainkan suara system berbeda per joint
+    private func playSystemSound(for joint: VNHumanBodyPoseObservation.JointName) {
+        // Mapping joint ke system sound ID (gunakan beberapa ID berbeda)
+        let soundID: SystemSoundID
+        switch joint {
+        case .leftShoulder: soundID = 1057 // Tink
+        case .rightShoulder: soundID = 1054 // Beep
+        case .leftElbow: soundID = 1052 // Pop
+        case .rightElbow: soundID = 1053 // Purr
+        case .leftWrist: soundID = 1050 // Tweet
+        case .rightWrist: soundID = 1051 // Funk
+        case .leftHip: soundID = 1005 // SMS Received
+        case .rightHip: soundID = 1006 // SMS Sent
+        case .leftKnee: soundID = 1007 // Anticipate
+        case .rightKnee: soundID = 1008 // Bloom
+        case .leftAnkle: soundID = 1009 // Calypso
+        case .rightAnkle: soundID = 1010 // Choo Choo
+        default: soundID = 1057 // Default Tink
+        }
+        AudioServicesPlaySystemSound(soundID)
     }
     
     // Analyze posture angles

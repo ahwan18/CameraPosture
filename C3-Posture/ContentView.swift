@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 // MARK: - Tampilan Utama Aplikasi
 // ContentView adalah tampilan utama yang menggabungkan kamera dan UI untuk deteksi postur
@@ -15,6 +16,14 @@ struct ContentView: View {
     @StateObject private var cameraViewModel = CameraViewModel()
     @StateObject private var poseSelectionViewModel = PoseSelectionViewModel()
     @State private var showingPoseSelection = false
+    @State private var showingFinishAlert = false
+    @State private var nextPoseIndex = 0
+    @State private var holdTimer: Timer? = nil
+    @State private var holdSeconds: Double = 0
+    let holdDuration: Double = 10.0
+    @State private var countdownOpacity: Double = 1.0
+    @State private var countdownNumber: Int = 10
+    @State private var animateCountdown = false
     
     var body: some View {
         ZStack {
@@ -68,6 +77,7 @@ struct ContentView: View {
                             // Exit button
                             Button(action: {
                                 cameraViewModel.exitPoseMatchingMode()
+                                resetHold()
                             }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: 24))
@@ -124,6 +134,45 @@ struct ContentView: View {
                         }
                     }
                     .padding(.bottom, 30)
+                    // Countdown angka besar di tengah layar
+                    if cameraViewModel.overallPoseMatchStatus && holdSeconds > 0 {
+                        Text("\(countdownNumber)")
+                            .font(.system(size: 120, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .opacity(countdownOpacity)
+                            .shadow(radius: 10)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .transition(.opacity)
+                            .animation(.easeInOut(duration: 0.3), value: countdownOpacity)
+                    }
+                }
+                .onAppear {
+                    // Set up callback untuk notifikasi ketika postur cocok
+                    cameraViewModel.onPoseMatched = {
+                        // Tidak langsung next, gunakan timer hold
+                    }
+                }
+                .onChange(of: cameraViewModel.overallPoseMatchStatus) { isMatching in
+                    if isMatching {
+                        startHold()
+                    } else {
+                        resetHold()
+                    }
+                }
+                .onChange(of: cameraViewModel.isPersonDetected) { detected in
+                    if !detected { resetHold() }
+                }
+                .onChange(of: cameraViewModel.currentPoseObservation) { obs in
+                    if obs == nil { resetHold() }
+                }
+                .alert("Selesai!", isPresented: $showingFinishAlert) {
+                    Button("Kembali ke Menu") {
+                        cameraViewModel.exitPoseMatchingMode()
+                        nextPoseIndex = 0
+                        resetHold()
+                    }
+                } message: {
+                    Text("Anda telah menyelesaikan semua postur!")
                 }
             } else {
                 // Pose selection view
@@ -159,9 +208,65 @@ struct ContentView: View {
                 isPresented: $showingPoseSelection,
                 onSelectPose: { pose in
                     cameraViewModel.setReferencePose(pose.image, name: pose.name)
+                    nextPoseIndex = poseSelectionViewModel.postures.firstIndex(where: { $0.id == pose.id }) ?? 0
+                    resetHold()
                 }
             )
         }
+    }
+    
+    private func startHold() {
+        if holdTimer == nil {
+            holdSeconds = 0
+            countdownNumber = Int(holdDuration)
+            countdownOpacity = 1.0
+            animateCountdown = false
+            holdTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                holdSeconds += 1.0
+                if countdownNumber > 1 {
+                    countdownNumber -= 1
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        countdownOpacity = 0.0
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        countdownOpacity = 1.0
+                    }
+                } else {
+                    holdTimer?.invalidate()
+                    holdTimer = nil
+                    holdSeconds = 0
+                    countdownNumber = Int(holdDuration)
+                    if nextPoseIndex + 1 >= poseSelectionViewModel.postures.count {
+                        showingFinishAlert = true
+                    } else {
+                        moveToNextPose()
+                    }
+                }
+            }
+        }
+    }
+    private func resetHold() {
+        holdTimer?.invalidate()
+        holdTimer = nil
+        holdSeconds = 0
+        countdownNumber = Int(holdDuration)
+        countdownOpacity = 1.0
+    }
+    private func moveToNextPose() {
+        let allPoses = poseSelectionViewModel.postures
+        nextPoseIndex = (nextPoseIndex + 1) % allPoses.count
+        
+        if let nextPose = allPoses[safe: nextPoseIndex] {
+            cameraViewModel.setReferencePose(nextPose.image, name: nextPose.name)
+            resetHold()
+        }
+    }
+}
+
+// Extension untuk safe array access
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
 
