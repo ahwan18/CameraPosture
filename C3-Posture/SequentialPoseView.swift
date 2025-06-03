@@ -254,26 +254,32 @@ class SequentialPoseManager: ObservableObject {
         resetHoldTimer()
     }
     
-    private func resetHoldTimer() {
-        holdTimer?.invalidate()
-        holdTimer = nil
-        isHolding = false
-        holdTimeRemaining = requiredHoldTime
-        holdProgress = 0.0
-    }
-    
     func updatePoseMatchStatus(_ isMatched: Bool) {
         if isMatched && !isHolding && !isCompleted {
+            // User matched the pose and we're not already holding - start the timer
             startHoldTimer()
         } else if !isMatched && isHolding {
+            // User lost the pose while holding - reset the timer completely
+            resetHoldTimer()
+            print("Pose match lost - timer reset!")
+        } else if isMatched && isHolding {
+            // User is still matching and holding - timer continues
+            // No action needed, timer keeps running
+        } else if !isMatched && !isHolding {
+            // User is not matching and not holding - ensure timer stays reset
             resetHoldTimer()
         }
     }
     
     private func startHoldTimer() {
+        // Stop any existing timer first
+        holdTimer?.invalidate()
+        
         isHolding = true
         holdTimeRemaining = requiredHoldTime
         holdProgress = 0.0
+        
+        print("Starting hold timer for \(requiredHoldTime) seconds")
         
         holdTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
             guard let self = self else {
@@ -286,9 +292,19 @@ class SequentialPoseManager: ObservableObject {
             
             if self.holdTimeRemaining <= 0 {
                 timer.invalidate()
+                print("Hold timer completed successfully!")
                 self.completeCurrentPose()
             }
         }
+    }
+    
+    private func resetHoldTimer() {
+        holdTimer?.invalidate()
+        holdTimer = nil
+        isHolding = false
+        holdTimeRemaining = requiredHoldTime
+        holdProgress = 0.0
+        print("Hold timer reset")
     }
     
     private func completeCurrentPose() {
