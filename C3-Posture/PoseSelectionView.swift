@@ -1,41 +1,31 @@
 import SwiftUI
-import PhotosUI
+import UIKit
 
 struct PoseSelectionView: View {
+    
+    // MARK: - Properties
+    
     @ObservedObject var viewModel: PoseSelectionViewModel
     @Binding var isPresented: Bool
     let onSelectPose: (Posture) -> Void
     
+    // MARK: - State
+    
     @State private var showingImagePicker = false
-    @State private var showingNameInput = false
-    @State private var newPostureName = ""
+    @State private var newPoseName = ""
+    @State private var showingAddPoseDialog = false
     @State private var selectedImage: UIImage?
-    @State private var selectedItems: [PhotosPickerItem] = []
     
     var body: some View {
         NavigationView {
             VStack {
-                if viewModel.postures.isEmpty {
-                    ContentUnavailableView(
-                        "No Postures",
-                        systemImage: "photo.on.rectangle",
-                        description: Text("Add your first posture by tapping the + button")
-                    )
+                if viewModel.isLoading {
+                    ProgressView("Loading poses...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.postures.isEmpty {
+                    emptyStateView
                 } else {
-                    ScrollView {
-                        LazyVGrid(columns: [
-                            GridItem(.flexible()),
-                            GridItem(.flexible())
-                        ], spacing: 16) {
-                            ForEach(viewModel.postures) { pose in
-                                PoseItemView(pose: pose) {
-                                    onSelectPose(pose)
-                                    isPresented = false
-                                }
-                            }
-                        }
-                        .padding()
-                    }
+                    poseGridView
                 }
             }
             .navigationTitle("Select Pose")
@@ -46,6 +36,7 @@ struct PoseSelectionView: View {
                         isPresented = false
                     }
                 }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showingImagePicker = true
@@ -55,74 +46,167 @@ struct PoseSelectionView: View {
                 }
             }
         }
-        .onAppear {
-            viewModel.loadPostures() // Refresh postures when view appears
+        .sheet(isPresented: $showingImagePicker) {
+            ImagePicker(selectedImage: $selectedImage, isPresented: $showingImagePicker)
         }
-        .photosPicker(isPresented: $showingImagePicker,
-                     selection: $selectedItems,
-                     maxSelectionCount: 1,
-                     matching: .images)
-        .onChange(of: selectedItems) { items in
-            guard let item = items.first else { return }
-            loadTransferable(from: item)
-        }
-        .alert("Name Your Pose", isPresented: $showingNameInput) {
-            TextField("Pose Name", text: $newPostureName)
+        .alert("Add New Pose", isPresented: $showingAddPoseDialog) {
+            TextField("Pose name", text: $newPoseName)
+            Button("Add") {
+                if let image = selectedImage, !newPoseName.isEmpty {
+                    viewModel.addNewPose(image: image, name: newPoseName)
+                    newPoseName = ""
+                    selectedImage = nil
+                }
+            }
             Button("Cancel", role: .cancel) {
                 selectedImage = nil
-                newPostureName = ""
-                selectedItems = []
+                newPoseName = ""
             }
-            Button("Save") {
-                if let image = selectedImage {
-                    viewModel.addNewPose(image: image, name: newPostureName)
-                }
-                selectedImage = nil
-                newPostureName = ""
-                selectedItems = []
+        } message: {
+            Text("Enter a name for the new pose")
+        }
+        .alert("Error", isPresented: $viewModel.showError) {
+            Button("OK") {
+                viewModel.clearError()
+            }
+        } message: {
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+            }
+        }
+        .onAppear {
+            viewModel.loadPostures()
+        }
+        .onChange(of: selectedImage) { image in
+            if image != nil {
+                showingAddPoseDialog = true
             }
         }
     }
     
-    private func loadTransferable(from imageSelection: PhotosPickerItem) {
-        imageSelection.loadTransferable(type: Data.self) { result in
-            switch result {
-            case .success(let data):
-                if let data = data, let image = UIImage(data: data) {
-                    DispatchQueue.main.async {
-                        self.selectedImage = image
-                        self.showingNameInput = true
-                        self.selectedItems = []
+    // MARK: - Subviews
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 64))
+                .foregroundColor(.gray)
+            
+            Text("No poses available")
+                .font(.title2)
+                .foregroundColor(.gray)
+            
+            Text("Add your first pose by tapping the + button")
+                .font(.body)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+            
+            Button("Add Pose") {
+                showingImagePicker = true
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var poseGridView: some View {
+        ScrollView {
+            LazyVGrid(columns: [
+                GridItem(.adaptive(minimum: 150))
+            ], spacing: 16) {
+                ForEach(viewModel.postures) { posture in
+                    PoseCard(posture: posture) {
+                        onSelectPose(posture)
+                        isPresented = false
                     }
                 }
-            case .failure(let error):
-                print("Error loading image: \(error)")
             }
+            .padding()
         }
     }
 }
 
-struct PoseItemView: View {
-    let pose: Posture
+// MARK: - Pose Card
+
+struct PoseCard: View {
+    let posture: Posture
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            VStack {
-                Image(uiImage: pose.image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 200)
-                    .clipped()
-                    .cornerRadius(10)
+            VStack(spacing: 8) {
+                // Pose Image
+                Group {
+                    if let image = posture.image {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } else {
+                        Image(systemName: "photo")
+                            .font(.system(size: 40))
+                            .foregroundColor(.gray)
+                    }
+                }
+                .frame(width: 140, height: 180)
+                .clipped()
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                )
                 
-                Text(pose.name)
-                    .font(.caption)
+                // Pose Name
+                Text(posture.name)
+                    .font(.headline)
                     .foregroundColor(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
             }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Image Picker
+
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    @Binding var isPresented: Bool
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePicker
+        
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.selectedImage = image
+            }
+            parent.isPresented = false
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.isPresented = false
         }
     }
 }
+
+// MARK: - Preview
 
 #Preview {
     PoseSelectionView(

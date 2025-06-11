@@ -248,7 +248,7 @@ extension CameraViewModel: AVCaptureVideoDataOutputSampleBufferDelegate {
         do {
             try handler.perform([personDetectionRequest, poseRequest])
             
-            let personObservations = personDetectionRequest.results as? [VNHumanObservation] ?? []
+            let personObservations = personDetectionRequest.results ?? []
             let poseObservations = poseRequest.results as? [VNHumanBodyPoseObservation] ?? []
             
             if personObservations.isEmpty {

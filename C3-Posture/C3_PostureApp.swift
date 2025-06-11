@@ -13,8 +13,8 @@ import SwiftUI
 @main
 struct C3_PostureApp: App {
     init() {
-        // Initialize the PosturesManager to ensure posture images are available
-        _ = PosturesManager.shared
+        // Initialize the PostureService to ensure posture images are available
+        _ = PostureService.shared
     }
     
     // body adalah properti yang mengembalikan Scene (tampilan utama aplikasi)
