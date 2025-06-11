@@ -53,14 +53,17 @@ class PostureService: PostureServiceProtocol {
     // MARK: - Public Methods
     
     func getAllPoseInfos() -> [PoseInfo] {
-        // First try to load directly from bundle Resources/Postures
+        // CRITICAL BUG FIX: Load poses alphabetically from Resources/Postures
         if let bundleURL = Bundle.main.url(forResource: "Postures", withExtension: nil, subdirectory: "Resources") {
             do {
                 let fileURLs = try FileManager.default.contentsOfDirectory(at: bundleURL, includingPropertiesForKeys: nil)
                 let imageURLs = fileURLs.filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "png" }
                 
                 if !imageURLs.isEmpty {
-                    let poses = imageURLs.map { url in
+                    // Sort alphabetically by filename
+                    let sortedURLs = imageURLs.sorted { $0.lastPathComponent < $1.lastPathComponent }
+                    
+                    let poses = sortedURLs.map { url in
                         let filename = url.lastPathComponent
                         let name = filename
                             .replacingOccurrences(of: ".jpg", with: "")
@@ -70,7 +73,7 @@ class PostureService: PostureServiceProtocol {
                         return PoseInfo(name: name, filename: filename)
                     }
                     
-                    print("PostureService: Loaded \(poses.count) pose infos from bundle Resources/Postures")
+                    print("PostureService: Loaded \(poses.count) pose infos alphabetically from Resources/Postures")
                     return poses
                 }
             } catch {
@@ -88,7 +91,10 @@ class PostureService: PostureServiceProtocol {
             let fileURLs = try FileManager.default.contentsOfDirectory(at: postureDirURL, includingPropertiesForKeys: nil)
             let imageURLs = fileURLs.filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "png" }
             
-            let poses = imageURLs.map { url in
+            // Sort alphabetically
+            let sortedURLs = imageURLs.sorted { $0.lastPathComponent < $1.lastPathComponent }
+            
+            let poses = sortedURLs.map { url in
                 let filename = url.lastPathComponent
                 let name = filename
                     .replacingOccurrences(of: ".jpg", with: "")
@@ -98,7 +104,7 @@ class PostureService: PostureServiceProtocol {
                 return PoseInfo(name: name, filename: filename)
             }
             
-            print("PostureService: Loaded \(poses.count) pose infos from documents directory")
+            print("PostureService: Loaded \(poses.count) pose infos alphabetically from documents directory")
             return poses.isEmpty ? getDefaultPoseInfos() : poses
         } catch {
             print("PostureService: Error getting postures from documents: \(error)")

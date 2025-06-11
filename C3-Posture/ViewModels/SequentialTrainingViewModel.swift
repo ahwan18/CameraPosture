@@ -4,7 +4,7 @@ import Foundation
 
 // MARK: - Sequential Training ViewModel
 
-class SequentialTrainingViewModel: ObservableObject {
+class SequentialTrainingViewModel: ObservableObject, SequentialTrainingDelegate {
     
     // MARK: - Published Properties
     
@@ -58,6 +58,7 @@ class SequentialTrainingViewModel: ObservableObject {
     
     var onPoseChanged: ((Posture) -> Void)?
     var onTrainingCompleted: (() -> Void)?
+    var onPositioningLost: (() -> Void)?
     
     // MARK: - Initialization
     
@@ -107,20 +108,27 @@ class SequentialTrainingViewModel: ObservableObject {
     }
     
     func updatePoseMatchStatus(_ isMatched: Bool) {
-        guard isTrainingActive, !isCompleted else { return }
+        guard isTrainingActive, !isCompleted else { 
+            print("⚠️ UpdatePoseMatch ignored - Active: \(isTrainingActive), Completed: \(isCompleted)")
+            return 
+        }
+        
+        print("📊 Pose Match Update: \(isMatched ? "✅ MATCHED" : "❌ NOT MATCHED") - Timer Active: \(holdTimer.isActive)")
         
         if isMatched && !holdTimer.isActive {
             // User matched the pose and we're not already holding - start the timer
+            print("🚀 Starting hold timer - user matched pose!")
             startHoldTimer()
         } else if !isMatched && holdTimer.isActive {
             // User lost the pose while holding - reset the timer completely
             resetHoldTimer()
-            print("SequentialTrainingViewModel: Pose match lost - timer reset!")
+            print("🔄 Pose match lost - timer reset!")
         } else if isMatched && holdTimer.isActive {
             // User is still matching and holding - timer continues
-            // No action needed, timer keeps running
+            print("⏳ Pose still matched - timer continues...")
         } else if !isMatched && !holdTimer.isActive {
             // User is not matching and not holding - ensure timer stays reset
+            print("⏸️ Pose not matched - timer stays reset")
             resetHoldTimer()
         }
     }
@@ -145,8 +153,13 @@ class SequentialTrainingViewModel: ObservableObject {
             
             if completed {
                 timer.invalidate()
-                print("SequentialTrainingViewModel: Hold timer completed successfully!")
+                print("🎯 Hold timer completed successfully! Moving to next pose...")
                 self.completeCurrentPose()
+            } else {
+                // Occasionally log progress
+                if Int(self.holdTimer.remainingTime * 10) % 10 == 0 {
+                    print("⏰ Hold progress: \(String(format: "%.1f", self.holdTimer.requiredDuration - self.holdTimer.remainingTime))/\(self.holdTimer.requiredDuration)s")
+                }
             }
         }
     }
@@ -179,6 +192,36 @@ class SequentialTrainingViewModel: ObservableObject {
                 }
             }
         }
+    }
+    
+    // MARK: - SequentialTrainingDelegate
+    
+    func userLeftPositioningBox() {
+        print("SequentialTrainingViewModel: User left positioning box for extended period - resetting training")
+        
+        // Reset current training state but don't immediately restart
+        resetHoldTimer()
+        
+        // Reset to first pose but don't start a new training session immediately
+        if var session = trainingSession {
+            session.resetToFirstPose()
+            trainingSession = session
+            
+            // Notify about returning to first pose
+            if let firstPose = currentPose {
+                onPoseChanged?(firstPose)
+            }
+        }
+        
+        // Notify callback if needed
+        onPositioningLost?()
+    }
+    
+    func positioningCompleted() {
+        print("SequentialTrainingViewModel: Positioning completed - starting training")
+        
+        // Now start the training session
+        startTraining()
     }
 }
 

@@ -94,6 +94,12 @@ struct TrainingSession {
         startTime = Date()
         completedPoses.removeAll()
     }
+    
+    mutating func resetToFirstPose() {
+        currentPoseIndex = 0
+        isCompleted = false
+        // Keep startTime and completedPoses as they were
+    }
 }
 
 /// Hold timer state for pose validation
@@ -105,7 +111,7 @@ struct HoldTimer {
         1.0 - (remainingTime / requiredDuration)
     }
     
-    init(requiredDuration: TimeInterval = 5.0) {
+    init(requiredDuration: TimeInterval = 3.0) {
         self.requiredDuration = requiredDuration
         self.remainingTime = requiredDuration
         self.isActive = false
