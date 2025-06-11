@@ -15,6 +15,7 @@ struct ContentView: View {
     @StateObject private var cameraViewModel = CameraViewModel()
     @StateObject private var poseSelectionViewModel = PoseSelectionViewModel()
     @State private var showingPoseSelection = false
+    @State private var showingSequentialTraining = false
     
     var body: some View {
         ZStack {
@@ -127,23 +128,59 @@ struct ContentView: View {
                 }
             } else {
                 // Pose selection view
-                VStack {
-                    Text("Select a Pose to Match")
-                        .font(.title)
+                VStack(spacing: 30) {
+                    Text("Posture Training")
+                        .font(.largeTitle)
+                        .bold()
                         .padding()
                     
-                    Button(action: {
-                        showingPoseSelection = true
-                    }) {
-                        Text("Choose Pose")
-                            .font(.headline)
-                            .foregroundColor(.white)
+                    VStack(spacing: 20) {
+                        Button(action: {
+                            showingPoseSelection = true
+                        }) {
+                            VStack {
+                                Image(systemName: "person.crop.circle")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.white)
+                                
+                                Text("Single Pose Practice")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                Text("Choose and practice one pose")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.8))
+                            }
                             .padding()
                             .frame(maxWidth: .infinity)
                             .background(Color.blue)
-                            .cornerRadius(10)
+                            .cornerRadius(15)
+                        }
+                        .padding(.horizontal)
+                        
+                        Button(action: {
+                            showingSequentialTraining = true
+                        }) {
+                            VStack {
+                                Image(systemName: "figure.run")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.white)
+                                
+                                Text("Sequential Training")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                Text("Practice all poses in sequence")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.8))
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.green)
+                            .cornerRadius(15)
+                        }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
                 }
                 .onAppear {
                     // Ensure camera is stopped when returning to pose selection
@@ -161,6 +198,9 @@ struct ContentView: View {
                     cameraViewModel.setReferencePose(pose.image, name: pose.name)
                 }
             )
+        }
+        .fullScreenCover(isPresented: $showingSequentialTraining) {
+            SequentialPoseView()
         }
     }
 }
