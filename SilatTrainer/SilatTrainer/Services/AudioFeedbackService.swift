@@ -24,21 +24,21 @@ class AudioFeedbackService: NSObject {
         }
     }
     
-    func speak(_ text: String, priority: AVSpeechUtterance.Priority = .default) {
+    func speak(_ text: String, isHighPriority: Bool = false) {
         // Check if enough time has passed since last feedback
         if let lastTime = lastFeedbackTime {
             let timeSinceLastFeedback = Date().timeIntervalSince(lastTime)
             if timeSinceLastFeedback < TrainingConfig.audioFeedbackDelay {
                 // Too soon, add to queue if high priority
-                if priority == .high {
+                if isHighPriority {
                     feedbackQueue.append(text)
                 }
                 return
             }
         }
         
-        // Stop current speech if any
-        if synthesizer.isSpeaking {
+        // Stop current speech if any for high priority messages
+        if synthesizer.isSpeaking && isHighPriority {
             synthesizer.stopSpeaking(at: .immediate)
         }
         
@@ -53,11 +53,11 @@ class AudioFeedbackService: NSObject {
     }
     
     func speakPoseInstruction(_ poseName: String) {
-        speak("Lakukan pose \(poseName). Tahan selama 3 detik.", priority: .high)
+        speak("Lakukan pose \(poseName). Tahan selama 3 detik.", isHighPriority: true)
     }
     
     func speakCorrection(_ message: String) {
-        speak(message, priority: .default)
+        speak(message, isHighPriority: false)
     }
     
     func speakEncouragement() {
@@ -69,20 +69,20 @@ class AudioFeedbackService: NSObject {
         ]
         
         if let randomMessage = encouragements.randomElement() {
-            speak(randomMessage, priority: .low)
+            speak(randomMessage, isHighPriority: false)
         }
     }
     
     func speakPoseCompleted() {
-        speak("Pose selesai! Lanjut ke pose berikutnya.", priority: .high)
+        speak("Pose selesai! Lanjut ke pose berikutnya.", isHighPriority: true)
     }
     
     func speakTrainingCompleted() {
-        speak("Selamat! Anda telah menyelesaikan semua pose Jurus Satu. Luar biasa!", priority: .high)
+        speak("Selamat! Anda telah menyelesaikan semua pose Jurus Satu. Luar biasa!", isHighPriority: true)
     }
     
     func speakWarning(_ message: String) {
-        speak(message, priority: .high)
+        speak(message, isHighPriority: true)
     }
     
     func stopSpeaking() {
@@ -97,7 +97,7 @@ class AudioFeedbackService: NSObject {
         isProcessingQueue = true
         if let nextMessage = feedbackQueue.first {
             feedbackQueue.removeFirst()
-            speak(nextMessage, priority: .default)
+            speak(nextMessage, isHighPriority: false)
         }
     }
 }

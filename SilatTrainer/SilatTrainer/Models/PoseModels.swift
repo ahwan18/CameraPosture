@@ -153,7 +153,7 @@ struct JurusPose {
     let name: String
     let description: String
     let imageName: String
-    let poseReference: PoseReference?
+    var poseReference: PoseReference?
 }
 
 // Model untuk tracking progress latihan
