@@ -37,7 +37,8 @@ struct JointControlView: View {
                 ScrollView {
                     VStack(spacing: 8) {
                         ForEach(JointName.allCases, id: \.self) { jointName in
-                            if let joint = pose.joints[jointName] {
+                            if let joint = pose.joints[jointName],
+                               !JointConnection.shouldIgnoreJoint(jointName) {
                                 JointControlRow(
                                     jointName: jointName,
                                     joint: joint,

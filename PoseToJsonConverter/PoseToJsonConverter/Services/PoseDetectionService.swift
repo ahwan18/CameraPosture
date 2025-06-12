@@ -64,13 +64,14 @@ class PoseDetectionService {
         
         for (vnJointName, point) in recognizedJoints {
             guard let jointName = JointName.from(vnJoint: vnJointName),
-                  point.confidence > 0.1 else { continue }
+                  point.confidence > 0.1,
+                  !JointConnection.shouldIgnoreJoint(jointName) else { continue }
             
             // Vision framework memberikan koordinat dalam normalized space (0,1)
             // dengan origin di bottom-left, kita perlu flip Y untuk UI
             let normalizedPosition = CGPoint(
                 x: point.location.x,
-                y: 1.0 - point.location.y
+                y: 1.0 - point.location.y  // Flip Y untuk memutar 180 derajat
             )
             
             joints[jointName] = EditableJoint(

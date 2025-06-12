@@ -46,7 +46,13 @@ class PoseConverterViewModel: ObservableObject {
         guard var pose = currentPose,
               var editableJoint = pose.joints[joint] else { return }
         
-        editableJoint.normalizedPosition = normalizedPosition
+        // Pastikan koordinat dalam range 0-1
+        let clampedPosition = CGPoint(
+            x: min(max(normalizedPosition.x, 0), 1),
+            y: min(max(normalizedPosition.y, 0), 1)
+        )
+        
+        editableJoint.normalizedPosition = clampedPosition
         editableJoint.confidence = 1.0 // Manual edit = full confidence
         pose.joints[joint] = editableJoint
         currentPose = pose

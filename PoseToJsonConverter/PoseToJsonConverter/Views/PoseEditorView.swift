@@ -7,6 +7,28 @@ struct PoseEditorView: View {
     @State private var showingDeleteAlert = false
     @State private var jointToDelete: JointName?
     
+    // Fungsi untuk menghitung ukuran dan offset gambar yang di-fit ke frame
+    func fittedImageInfo(containerSize: CGSize, imageSize: CGSize) -> (drawnSize: CGSize, offset: CGPoint) {
+        let imageAspect = imageSize.width / imageSize.height
+        let containerAspect = containerSize.width / containerSize.height
+        var drawnSize = CGSize.zero
+        var offset = CGPoint.zero
+        if imageAspect > containerAspect {
+            // Gambar lebih lebar dari container
+            drawnSize.width = containerSize.width
+            drawnSize.height = containerSize.width / imageAspect
+            offset.x = 0
+            offset.y = (containerSize.height - drawnSize.height) / 2
+        } else {
+            // Gambar lebih tinggi dari container
+            drawnSize.height = containerSize.height
+            drawnSize.width = containerSize.height * imageAspect
+            offset.x = (containerSize.width - drawnSize.width) / 2
+            offset.y = 0
+        }
+        return (drawnSize, offset)
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -26,14 +48,34 @@ struct PoseEditorView: View {
                         }
                     )
                 
+                // Joint connections
+                if let pose = viewModel.currentPose {
+                    let info = fittedImageInfo(containerSize: geometry.size, imageSize: image.size)
+                    ForEach(JointConnection.defaultConnections) { connection in
+                        if let fromJoint = pose.joints[connection.from],
+                           let toJoint = pose.joints[connection.to] {
+                            JointConnectionView(
+                                connection: connection,
+                                fromJoint: fromJoint,
+                                toJoint: toJoint,
+                                imageSize: info.drawnSize,
+                                offset: info.offset
+                            )
+                        }
+                    }
+                }
+                
                 // Joint overlay
                 if let pose = viewModel.currentPose {
+                    let info = fittedImageInfo(containerSize: geometry.size, imageSize: image.size)
                     ForEach(Array(pose.joints.keys), id: \.self) { jointName in
-                        if let joint = pose.joints[jointName] {
+                        if let joint = pose.joints[jointName],
+                           !JointConnection.shouldIgnoreJoint(jointName) {
                             EditableJointView(
                                 jointName: jointName,
                                 joint: joint,
-                                imageSize: imageSize,
+                                imageSize: info.drawnSize,
+                                offset: info.offset,
                                 viewModel: viewModel,
                                 onDelete: {
                                     jointToDelete = jointName
@@ -92,6 +134,7 @@ struct EditableJointView: View {
     let jointName: JointName
     let joint: EditableJoint
     let imageSize: CGSize
+    let offset: CGPoint
     @ObservedObject var viewModel: PoseConverterViewModel
     let onDelete: () -> Void
     
@@ -102,8 +145,8 @@ struct EditableJointView: View {
     // Convert normalized position to view position
     var viewPosition: CGPoint {
         CGPoint(
-            x: joint.normalizedPosition.x * imageSize.width,
-            y: joint.normalizedPosition.y * imageSize.height
+            x: joint.normalizedPosition.x * imageSize.width + offset.x,
+            y: joint.normalizedPosition.y * imageSize.height + offset.y
         )
     }
     
@@ -165,8 +208,8 @@ struct EditableJointView: View {
                 .onEnded { value in
                     // Calculate new normalized position
                     let newViewPosition = CGPoint(
-                        x: viewPosition.x + value.translation.width,
-                        y: viewPosition.y + value.translation.height
+                        x: viewPosition.x + value.translation.width - offset.x,
+                        y: viewPosition.y + value.translation.height - offset.y
                     )
                     
                     let newNormalizedPosition = CGPoint(
@@ -229,6 +272,61 @@ struct EditableJointView: View {
                 Label("Hapus Joint", systemImage: "trash")
             }
             .foregroundColor(.red)
+        }
+    }
+}
+
+struct JointConnectionView: View {
+    let connection: JointConnection
+    let fromJoint: EditableJoint
+    let toJoint: EditableJoint
+    let imageSize: CGSize
+    let offset: CGPoint
+    
+    var fromPosition: CGPoint {
+        CGPoint(
+            x: fromJoint.normalizedPosition.x * imageSize.width + offset.x,
+            y: fromJoint.normalizedPosition.y * imageSize.height + offset.y
+        )
+    }
+    
+    var toPosition: CGPoint {
+        CGPoint(
+            x: toJoint.normalizedPosition.x * imageSize.width + offset.x,
+            y: toJoint.normalizedPosition.y * imageSize.height + offset.y
+        )
+    }
+    
+    var body: some View {
+        Path { path in
+            path.move(to: fromPosition)
+            path.addLine(to: toPosition)
+        }
+        .stroke(
+            LinearGradient(
+                colors: [
+                    jointColor(fromJoint.status),
+                    jointColor(toJoint.status)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            ),
+            style: StrokeStyle(
+                lineWidth: 2,
+                lineCap: .round,
+                lineJoin: .round
+            )
+        )
+    }
+    
+    private func jointColor(_ status: JointStatus) -> Color {
+        switch status {
+        case .normal:
+            return .blue
+        case .ignored:
+            return .gray.opacity(0.5)
+        case .important:
+            return .red
         }
     }
 } 
