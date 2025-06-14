@@ -133,7 +133,8 @@ struct RekapLatihanView: View {
                 }
                 .padding(.horizontal, 20)
             }
-            .padding(.top, 25)
+            .frame(height: 30)
+            .padding(.top, 45)
             .padding(.bottom, 0)
             
             
