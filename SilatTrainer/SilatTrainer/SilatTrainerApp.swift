@@ -11,7 +11,7 @@ import SwiftUI
 struct SilatTrainerApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LatihanView()
         }
     }
 }
