@@ -12,66 +12,67 @@ struct LatihanView: View {
     @StateObject private var cameraVM = CameraViewModel()
     
     var body: some View {
-        ZStack {
-            CameraPreviewView(session: cameraVM.session)
-                .ignoresSafeArea()
-            
-            VStack {
-                HStack {
-                    Button(action: {
+        NavigationStack {
+            ZStack {
+                CameraPreviewView(session: cameraVM.session)
+                    .ignoresSafeArea()
+                
+                VStack {
+                    HStack {
+                        Button(action: {
+                            
+                        }) {
+                            Image(systemName: "info.circle")
+                                .padding(.leading, 37)
+                        }
                         
-                    }) {
-                        Image(systemName: "info.circle")
-                            .padding(.leading, 37)
+                        Spacer()
+                        
+                        Button(action: {
+                            
+                        }) {
+                            Image(systemName: "x.circle")
+                                .padding(.trailing, 37)
+                        }
+                        
+                    }
+                    .font(.system(size: 32.25, weight: .medium))
+                    .foregroundStyle(.black)
+                    .padding(.vertical, 4)
+                    
+                    Text("Jurus 1")
+                        .font(.system(size: 32, weight: .bold))
+                    
+                    if let firstIndex = poseData.firstIndex(where: { _ in true }),
+                       let lastIndex = poseData.indices.last {
+                        let startLabel = "A\(firstIndex + 1)"
+                        let endLabel = "A\(lastIndex + 1)"
+                        
+                        Text("\(startLabel) / \(endLabel)")
+                            .font(.system(size: 32, weight: .medium))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 30)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(Color.gray.opacity(0.14))
+                            )
                     }
                     
                     Spacer()
                     
-                    Button(action: {
-                        
-                    }) {
-                        Image(systemName: "x.circle")
-                            .padding(.trailing, 37)
-                    }
-                    
-                }
-                .font(.system(size: 32.25, weight: .medium))
-                .foregroundStyle(.black)
-                .padding(.vertical, 4)
-                
-                Text("Jurus 1")
-                    .font(.system(size: 32, weight: .bold))
-                
-                if let firstIndex = poseData.firstIndex(where: { _ in true }),
-                   let lastIndex = poseData.indices.last {
-                    let startLabel = "A\(firstIndex + 1)"
-                    let endLabel = "A\(lastIndex + 1)"
-                    
-                    Text("\(startLabel) / \(endLabel)")
-                        .font(.system(size: 32, weight: .medium))
+                    Text("Sesuaikan Posisi Anda di dalam Kotak")
+                        .font(.system(size: 18, weight: .medium))
+                        .multilineTextAlignment(.center)
                         .foregroundStyle(.black)
-                        .padding(.horizontal, 30)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(Color.gray.opacity(0.14))
-                        )
-                }
-                
-                Spacer()
-                
-                Text("Sesuaikan Posisi Anda di dalam Kotak")
-                    .font(.system(size: 18, weight: .medium))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 50)
-                    .padding(.horizontal, 48)
-                
-                Button(action: {
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 50)
+                        .padding(.horizontal, 48)
                     
-                }) {
-                    Text("Recap Page")
+                    NavigationLink(destination: RekapLatihanView()) {
+                        Text("Lanjut ke Rekap")
+                            .font(.system(size: 18, weight: .medium))
+                    }
                 }
             }
         }
