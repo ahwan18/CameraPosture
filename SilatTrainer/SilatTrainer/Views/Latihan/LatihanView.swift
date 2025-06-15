@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Vision
 
 struct LatihanView: View {
     
@@ -13,13 +14,46 @@ struct LatihanView: View {
     @State private var showTutorial = false // state untuk menunjukan view tutorial
     
     let poseData: [PoseData] = PoseLoader.loadPose()
-    @StateObject private var cameraVM = CameraViewModel()
+    @State private var cameraVM = CameraViewModel()
+    @State private var poseViewModel = PoseEstimationViewModel()
+
+    @State private var wasAtOptimalDistance: Bool = true
+    
+    private func checkAndAnnounceDistance() {
+        if !isAtOptimalDistance && wasAtOptimalDistance {
+            VoiceHelper.shared.speak("Pastikan seluruh tubuh terlihat")
+        }
+        wasAtOptimalDistance = isAtOptimalDistance
+    }
+
+    // Add computed property to check joint visibility
+    private var isAtOptimalDistance: Bool {
+        let requiredJoints: [HumanBodyPoseObservation.JointName] = [
+            .nose, .neck,
+            .leftShoulder, .rightShoulder,
+            .leftElbow, .rightElbow,
+            .leftWrist, .rightWrist,
+            .leftHip, .rightHip,
+            .leftKnee, .rightKnee,
+            .leftAnkle, .rightAnkle
+        ]
+        
+        // Check if all required joints are detected with high confidence
+        return requiredJoints.allSatisfy { joint in
+            poseViewModel.detectedBodyParts[joint] != nil
+        }
+    }
     
     var body: some View {
         NavigationStack {
             ZStack {
                 CameraPreviewView(session: cameraVM.session)
                     .ignoresSafeArea()
+                
+                PoseOverlayView(
+                    bodyParts: poseViewModel.detectedBodyParts,
+                    connections: poseViewModel.bodyConnections
+                )
                 
                 VStack {
                     HStack {
@@ -66,6 +100,21 @@ struct LatihanView: View {
                     
                     Spacer()
                     
+                    // Add distance indicator
+                    HStack {
+                        Image(systemName: isAtOptimalDistance ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                            .foregroundColor(isAtOptimalDistance ? .green : .orange)
+                        Text(isAtOptimalDistance ? "Posisi Optimal" : "Sesuaikan Jarak")
+                            .foregroundColor(isAtOptimalDistance ? .green : .orange)
+                    }
+                    .font(.system(size: 18, weight: .medium))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.white.opacity(0.8))
+                    )
+                    
                     Text("Sesuaikan Posisi Anda di dalam Kotak")
                         .font(.system(size: 18, weight: .medium))
                         .multilineTextAlignment(.center)
@@ -82,6 +131,11 @@ struct LatihanView: View {
             }
         }.fullScreenCover(isPresented: $showTutorial) {
             TutorialView()
+        }.task {
+            await cameraVM.checkPermission()
+            cameraVM.delegate = poseViewModel
+        }.onChange(of: isAtOptimalDistance) { _, _ in
+            checkAndAnnounceDistance()
         }
     }
 }
