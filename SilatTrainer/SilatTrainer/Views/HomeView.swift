@@ -9,9 +9,7 @@
 import SwiftUI
 
 struct HomeView: View {
-    @State private var showTutorial = false
-    @State private var showLatihan = false
-
+    var navigate: (AppRoute) -> Void
     var body: some View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: 90) {
@@ -26,9 +24,7 @@ struct HomeView: View {
                 )
 
                 Button(action: {
-                    print("button mulai latihan di klik")
-                    showLatihan = true // akan membuat view ini ditutupi oleh latihanView
-                    print("show latihan  = \(showLatihan)")
+                    navigate(.latihan)
                 }) {
                     Text("Mulai Latihan")
                         .font(.title)
@@ -42,14 +38,12 @@ struct HomeView: View {
                 .padding(.horizontal, 40)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .fullScreenCover(isPresented: $showLatihan){
-            LatihanView()
-        }
 
+            // Info button that triggers fullScreenCover
+        }
     }
 }
 
-#Preview {
-    HomeView()
-}
+//#Preview {
+//    HomeView()
+//}

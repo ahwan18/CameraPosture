@@ -9,11 +9,11 @@ import SwiftUI
 import Vision
 
 struct LatihanView: View {
-    
-    @Environment(\.dismiss) var dismiss // untuk menutup view
-    @State private var showTutorial = false // state untuk menunjukan view tutorial
-    
+    var navigate: (AppRoute) -> Void
+    var close: () -> Void
     let poseData: [PoseData] = PoseLoader.loadPose()
+    @Environment(\.dismiss) var dismiss
+    @State private var showTutorial = false
     @State private var cameraVM = CameraViewModel()
     @State private var poseViewModel = PoseEstimationViewModel()
 
@@ -45,7 +45,6 @@ struct LatihanView: View {
     }
     
     var body: some View {
-        NavigationStack {
             ZStack {
                 CameraPreviewView(session: cameraVM.session)
                     .ignoresSafeArea()
@@ -63,12 +62,14 @@ struct LatihanView: View {
                             Image(systemName: "info.circle")
                                 .padding(.leading, 37)
                         }
+                    .fullScreenCover(isPresented: $showTutorial) {
+                        TutorialView(navigate: navigate)
+                    }
                         
                         Spacer()
                         
-                        // close button
                         Button(action: {
-                            dismiss()
+                            close()
                         }) {
                             Image(systemName: "x.circle")
                                 .padding(.trailing, 37)
@@ -123,24 +124,21 @@ struct LatihanView: View {
                         .padding(.bottom, 50)
                         .padding(.horizontal, 48)
                     
-                    NavigationLink(destination: RekapLatihanView()) {
-                        Text("Lanjut ke Rekap")
-                            .font(.system(size: 18, weight: .medium))
+                    Button(action: {
+                        navigate(.finish)
+                    }) {
+                        Text("Selesai")
                     }
                 }
             }
-        }.fullScreenCover(isPresented: $showTutorial) {
-            TutorialView()
-        }.task {
-            await cameraVM.checkPermission()
-            cameraVM.delegate = poseViewModel
-        }.onChange(of: isAtOptimalDistance) { _, _ in
-            checkAndAnnounceDistance()
+            .navigationBarBackButtonHidden(true)
+            .task {
+              await cameraVM.checkPermission()
+              cameraVM.delegate = poseViewModel
+            }.onChange(of: isAtOptimalDistance) { _, _ in
+              checkAndAnnounceDistance()
+            }
         }
     }
-}
-
-#Preview {
-    LatihanView()
 }
 

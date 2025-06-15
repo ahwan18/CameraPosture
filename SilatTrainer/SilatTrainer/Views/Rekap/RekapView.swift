@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RekapLatihanView: View {
+    var resetToHome: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var selectedExercise = 0
     
@@ -91,7 +92,7 @@ struct RekapLatihanView: View {
                 Spacer()
                 Spacer()
                 Button(action: {
-                    dismiss()
+                    resetToHome()
                 }) {
                     Image(systemName: "xmark")
                         .font(.headline)
@@ -195,7 +196,9 @@ struct RekapLatihanView: View {
         }
         .background(Color.white)
         .animation(.easeInOut(duration: 0.3), value: selectedExercise)
+        .navigationBarBackButtonHidden(true)
     }
+    
 }
 
 struct Exercise {
@@ -203,11 +206,4 @@ struct Exercise {
     let name: String
     let secondaryIcon: String
     let items: [String]
-}
-
-// Preview
-struct RekapLatihanView_Previews: PreviewProvider {
-    static var previews: some View {
-        RekapLatihanView()
-    }
 }

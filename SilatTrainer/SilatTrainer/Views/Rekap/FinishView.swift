@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct FinishView: View {
+    @Environment(\.dismiss) var dismiss
+    
+    var navigate: (AppRoute) -> Void
     var body: some View {
         VStack(spacing: 70) {
             VStack {
@@ -21,7 +24,9 @@ struct FinishView: View {
             Image(systemName: "checkmark.seal.fill")
                 .resizable()
                 .frame(width: 250, height: 250)
-            Button(action: {}) {
+            Button(action: {
+                navigate(.rekap)
+            }) {
                 Text("Lihat Rekap Latihan")
                     .font(.title3)
             }
@@ -33,9 +38,6 @@ struct FinishView: View {
             
         }
         .padding(.bottom, 50)
+        .navigationBarBackButtonHidden(true)
     }
-}
-
-#Preview {
-    FinishView()
 }
