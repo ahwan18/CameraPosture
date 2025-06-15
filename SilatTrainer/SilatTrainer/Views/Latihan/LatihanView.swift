@@ -8,6 +8,10 @@
 import SwiftUI
 
 struct LatihanView: View {
+    
+    @Environment(\.dismiss) var dismiss // untuk menutup view
+    @State private var showTutorial = false // state untuk menunjukan view tutorial
+    
     let poseData: [PoseData] = PoseLoader.loadPose()
     @StateObject private var cameraVM = CameraViewModel()
     
@@ -20,7 +24,7 @@ struct LatihanView: View {
                 VStack {
                     HStack {
                         Button(action: {
-                            
+                            showTutorial = true
                         }) {
                             Image(systemName: "info.circle")
                                 .padding(.leading, 37)
@@ -28,8 +32,9 @@ struct LatihanView: View {
                         
                         Spacer()
                         
+                        // close button
                         Button(action: {
-                            
+                            dismiss()
                         }) {
                             Image(systemName: "x.circle")
                                 .padding(.trailing, 37)
@@ -75,6 +80,8 @@ struct LatihanView: View {
                     }
                 }
             }
+        }.fullScreenCover(isPresented: $showTutorial) {
+            TutorialView()
         }
     }
 }
