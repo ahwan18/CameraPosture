@@ -9,8 +9,7 @@
 import SwiftUI
 
 struct HomeView: View {
-    @State private var showTutorial = false
-
+    var navigate: (AppRoute) -> Void
     var body: some View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: 90) {
@@ -25,7 +24,7 @@ struct HomeView: View {
                 )
 
                 Button(action: {
-                    print("button di klik")
+                    navigate(.latihan)
                 }) {
                     Text("Mulai Latihan")
                         .font(.title)
@@ -41,22 +40,10 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Info button that triggers fullScreenCover
-            Button(action: {
-                showTutorial = true
-            }) {
-                Image(systemName: "info.circle")
-                    .resizable()
-                    .frame(width: 43, height: 43)
-                    .foregroundColor(.black)
-                    .padding()
-            }
-        }
-        .fullScreenCover(isPresented: $showTutorial) {
-            TutorialView()
         }
     }
 }
 
-#Preview {
-    HomeView()
-}
+//#Preview {
+//    HomeView()
+//}

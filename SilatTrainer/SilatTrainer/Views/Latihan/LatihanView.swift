@@ -8,11 +8,14 @@
 import SwiftUI
 
 struct LatihanView: View {
+    var navigate: (AppRoute) -> Void
+    var close: () -> Void
     let poseData: [PoseData] = PoseLoader.loadPose()
     @StateObject private var cameraVM = CameraViewModel()
+    @Environment(\.dismiss) var dismiss
+    @State private var showTutorial = false
     
     var body: some View {
-        NavigationStack {
             ZStack {
                 CameraPreviewView(session: cameraVM.session)
                     .ignoresSafeArea()
@@ -20,16 +23,19 @@ struct LatihanView: View {
                 VStack {
                     HStack {
                         Button(action: {
-                            
+                            showTutorial = true
                         }) {
                             Image(systemName: "info.circle")
                                 .padding(.leading, 37)
                         }
+                    .fullScreenCover(isPresented: $showTutorial) {
+                        TutorialView(navigate: navigate)
+                    }
                         
                         Spacer()
                         
                         Button(action: {
-                            
+                            close()
                         }) {
                             Image(systemName: "x.circle")
                                 .padding(.trailing, 37)
@@ -69,17 +75,14 @@ struct LatihanView: View {
                         .padding(.bottom, 50)
                         .padding(.horizontal, 48)
                     
-                    NavigationLink(destination: RekapLatihanView()) {
-                        Text("Lanjut ke Rekap")
-                            .font(.system(size: 18, weight: .medium))
+                    Button(action: {
+                        navigate(.finish)
+                    }) {
+                        Text("Selesai")
                     }
                 }
             }
-        }
+            .navigationBarBackButtonHidden(true)
     }
-}
-
-#Preview {
-    LatihanView()
 }
 
