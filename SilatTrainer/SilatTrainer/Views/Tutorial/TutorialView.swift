@@ -18,9 +18,9 @@ struct TutorialView: View {
                 }) {
                     Image(systemName: "x.circle")
                         .resizable()
-                        .frame(width: 43, height: 43)
+                        .frame(width: 32.25, height: 32.25)
                         .foregroundColor(.black)
-                        .padding()
+                        .padding(.horizontal, 40)
                 }
 
                 VStack {
