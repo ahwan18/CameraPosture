@@ -13,13 +13,19 @@ struct LatihanView: View {
     @State private var showTutorial = false // state untuk menunjukan view tutorial
     
     let poseData: [PoseData] = PoseLoader.loadPose()
-    @StateObject private var cameraVM = CameraViewModel()
+    @State private var cameraVM = CameraViewModel()
+    @State private var poseViewModel = PoseEstimationViewModel()
     
     var body: some View {
         NavigationStack {
             ZStack {
                 CameraPreviewView(session: cameraVM.session)
                     .ignoresSafeArea()
+                
+                PoseOverlayView(
+                    bodyParts: poseViewModel.detectedBodyParts,
+                    connections: poseViewModel.bodyConnections
+                )
                 
                 VStack {
                     HStack {
@@ -82,6 +88,9 @@ struct LatihanView: View {
             }
         }.fullScreenCover(isPresented: $showTutorial) {
             TutorialView()
+        }.task {
+            await cameraVM.checkPermission()
+            cameraVM.delegate = poseViewModel
         }
     }
 }
