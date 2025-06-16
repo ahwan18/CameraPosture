@@ -33,7 +33,7 @@ struct TutorialView: View {
                         Button(action: {
                         dismiss()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        navigate(.bukuJurus)
+                        navigate(.caraMenggunakan)
                         }
                         }) {
                             Text("Cara Menggunakan Aplikasi")
@@ -50,7 +50,7 @@ struct TutorialView: View {
                         Button(action: {
                             dismiss()
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            navigate(.caraMenggunakan)
+                            navigate(.bukuJurus)
                         }
                         }) {
                             Text("Buka Jurus Tunggal Baku IPSI")
