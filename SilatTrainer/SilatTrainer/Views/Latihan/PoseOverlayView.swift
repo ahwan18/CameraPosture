@@ -72,11 +72,11 @@ struct PoseOverlayView: View {
     }
     
     // Calculate relative body height and position from current pose detection
-    private func calculateBodyDimensions() -> (height: CGFloat, center: CGPoint, valid: Bool) {
+    private func calculateBodyDimensions() -> (height: CGFloat, center: CGPoint, width: CGFloat, valid: Bool) {
         // Need at least neck and one ankle for a reasonable height estimate
         guard let neck = bodyParts[.neck],
               let leftAnkle = bodyParts[.leftAnkle] ?? bodyParts[.rightAnkle] else {
-            return (1.0, CGPoint(x: 0.5, y: 0.5), false)
+            return (1.0, CGPoint(x: 0.5, y: 0.5), 0.3, false)
         }
         
         // Calculate body height based on detected joints
@@ -101,11 +101,27 @@ struct PoseOverlayView: View {
             centerY = neckPos.y + 0.15 // Approximate hip position from neck
         }
         
-        return (bodyHeight, CGPoint(x: centerX, y: centerY), true)
+        // Calculate body width (measured between shoulders and hips)
+        var bodyWidth: CGFloat = 0.3 // Default
+        if let leftShoulder = bodyParts[.leftShoulder],
+           let rightShoulder = bodyParts[.rightShoulder] {
+            let shoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+            bodyWidth = shoulderWidth
+        }
+        
+        // Also consider hip width
+        if let leftHip = bodyParts[.leftHip],
+           let rightHip = bodyParts[.rightHip] {
+            let hipWidth = abs(leftHip.x - rightHip.x)
+            // Use the larger of shoulder or hip width
+            bodyWidth = max(bodyWidth, hipWidth)
+        }
+        
+        return (bodyHeight, CGPoint(x: centerX, y: centerY), bodyWidth, true)
     }
     
     // Transform target pose points to match user's body proportions and position
-    private func transformTargetPoint(_ targetPoint: CGPoint, userBodyDimensions: (height: CGFloat, center: CGPoint, valid: Bool)) -> CGPoint {
+    private func transformTargetPoint(_ targetPoint: CGPoint, userBodyDimensions: (height: CGFloat, center: CGPoint, width: CGFloat, valid: Bool)) -> CGPoint {
         guard userBodyDimensions.valid, let targetPose = targetPose else {
             return targetPoint
         }
@@ -135,30 +151,35 @@ struct PoseOverlayView: View {
             targetCenter.y = singleHip.y
         }
         
-        // Calculate shoulder width for aspect ratio adjustment
-        var targetShoulderWidth: CGFloat = 0.15 // Default if not found
+        // Calculate target width
+        var targetWidth: CGFloat = 0.3 // Default if not found
         if let leftShoulder = targetPose.joints["leftShoulder"], 
            let rightShoulder = targetPose.joints["rightShoulder"] {
-            targetShoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+            let shoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+            targetWidth = shoulderWidth
         }
         
-        // Get user's shoulder width
-        var userShoulderWidth: CGFloat = 0.15
-        if let leftShoulder = bodyParts[.leftShoulder],
-           let rightShoulder = bodyParts[.rightShoulder] {
-            userShoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+        // Also consider hip width for target
+        if let leftHip = targetPose.joints["leftHip"],
+           let rightHip = targetPose.joints["rightHip"] {
+            let hipWidth = abs(leftHip.x - rightHip.x)
+            targetWidth = max(targetWidth, hipWidth)
         }
         
         // Scale and shift the target point
         let userHeight = userBodyDimensions.height
         let userCenter = userBodyDimensions.center
+        let userWidth = userBodyDimensions.width
         
         // Avoid division by zero
         let verticalScaleFactor = (targetHeight > 0.01) ? userHeight / targetHeight : 1.0
         
-        // Calculate horizontal scale factor - make it wider by multiplying by 1.25
-        let horizontalScaleFactor = (targetShoulderWidth > 0.01) ? 
-            (userShoulderWidth / targetShoulderWidth) * 1.25 : verticalScaleFactor * 1.25
+        // Calculate horizontal scale factor based on body width proportion
+        let widthRatio = (targetWidth > 0.01) ? userWidth / targetWidth : 1.0
+        
+        // Use a blended scale factor to accommodate different body types
+        // This reduces the impact of extreme width differences while preserving overall proportions
+        let horizontalScaleFactor = (widthRatio + verticalScaleFactor) / 2.0
         
         // Calculate the adjusted position with separate horizontal and vertical scaling
         let relativeX = targetPoint.x - targetCenter.x

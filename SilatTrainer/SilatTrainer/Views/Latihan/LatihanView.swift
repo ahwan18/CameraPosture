@@ -8,6 +8,7 @@
 import SwiftUI
 import Vision
 import UIKit
+import Foundation
 
 struct LatihanView: View {
     var navigate: (AppRoute) -> Void
@@ -37,9 +38,9 @@ struct LatihanView: View {
 
 
     private let holdDuration: Double = 8.0 // 8 seconds
-    private let poseMatchThreshold: Double = 0.1 // Significantly reduced for very high accuracy requirements
+    private let poseMatchThreshold: Double = 0.12 // Increased from 0.06 for much more lenient matching
     private let voiceInstructionInterval: TimeInterval = 4.0 // Minimum 4 seconds between voice instructions
-    private let poseTolerance: TimeInterval = 0.1 // Further reduced for even stricter pose maintenance
+    private let poseTolerance: TimeInterval = 0.15 // Increased from 0.08 seconds for more forgiving pose maintenance
     private let correctionGracePeriod: TimeInterval = 2.0 // Grace period after correction before allowing pose match
     
     private func checkAndAnnounceDistance() {
@@ -123,11 +124,11 @@ struct LatihanView: View {
     }
     
     // Calculate body dimensions for adaptive pose matching
-    private func calculateBodyDimensions() -> (height: Double, center: CGPoint, valid: Bool) {
+    private func calculateBodyDimensions() -> (height: Double, center: CGPoint, width: Double, valid: Bool) {
         // Need at least neck and one ankle for a reasonable height estimate
         guard let neck = poseViewModel.detectedBodyParts[.neck],
               let leftAnkle = poseViewModel.detectedBodyParts[.leftAnkle] ?? poseViewModel.detectedBodyParts[.rightAnkle] else {
-            return (1.0, CGPoint(x: 0.5, y: 0.5), false)
+            return (1.0, CGPoint(x: 0.5, y: 0.5), 0.3, false)
         }
         
         // Calculate body height
@@ -149,54 +150,28 @@ struct LatihanView: View {
             centerY = neckPos.y + 0.15
         }
         
-        return (bodyHeight, CGPoint(x: centerX, y: centerY), true)
-    }
-    
-    // Transform target pose point to match user's proportions
-    private func transformTargetPoint(_ targetPoint: CGPoint, userDimensions: (height: Double, center: CGPoint, valid: Bool), targetReferences: (height: Double, center: CGPoint)) -> CGPoint {
-        guard userDimensions.valid else { return targetPoint }
-        
-        // Get additional reference measurements for aspect ratio adjustment
-        let targetPose = poseData[currentPoseIndex]
-        
-        // Calculate shoulder width for aspect ratio adjustment
-        var targetShoulderWidth: CGFloat = 0.15 // Default if not found
-        if let leftShoulder = targetPose.joints["leftShoulder"], 
-           let rightShoulder = targetPose.joints["rightShoulder"] {
-            targetShoulderWidth = abs(leftShoulder.x - rightShoulder.x)
-        }
-        
-        // Get user's shoulder width
-        var userShoulderWidth: CGFloat = 0.15
+        // Calculate body width (measured between shoulders and hips)
+        var bodyWidth: Double = 0.3 // Default
         if let leftShoulder = poseViewModel.detectedBodyParts[.leftShoulder],
            let rightShoulder = poseViewModel.detectedBodyParts[.rightShoulder] {
-            userShoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+            let shoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+            bodyWidth = shoulderWidth
         }
         
-        // Scale and shift the target point with separate horizontal and vertical scaling
-        let verticalScaleFactor = (targetReferences.height > 0.01) ? userDimensions.height / targetReferences.height : 1.0
+        // Also consider hip width
+        if let leftHip = poseViewModel.detectedBodyParts[.leftHip],
+           let rightHip = poseViewModel.detectedBodyParts[.rightHip] {
+            let hipWidth = abs(leftHip.x - rightHip.x)
+            // Use the larger of shoulder or hip width
+            bodyWidth = max(bodyWidth, hipWidth)
+        }
         
-        // Calculate horizontal scale factor - make it wider by multiplying by 1.25
-        let horizontalScaleFactor = (targetShoulderWidth > 0.01) ? 
-            (userShoulderWidth / targetShoulderWidth) * 1.25 : verticalScaleFactor * 1.25
-        
-        // Calculate the adjusted position with separate horizontal and vertical scaling
-        let relativeX = targetPoint.x - targetReferences.center.x
-        let relativeY = targetPoint.y - targetReferences.center.y
-        
-        let adjustedX = userDimensions.center.x + relativeX * horizontalScaleFactor
-        let adjustedY = userDimensions.center.y + relativeY * verticalScaleFactor
-        
-        // Keep points within bounds
-        let boundedX = min(max(adjustedX, 0.01), 0.99)
-        let boundedY = min(max(adjustedY, 0.01), 0.99)
-        
-        return CGPoint(x: boundedX, y: boundedY)
+        return (bodyHeight, CGPoint(x: centerX, y: centerY), bodyWidth, true)
     }
     
     // Get target pose reference dimensions
-    private func getTargetPoseReferences() -> (height: Double, center: CGPoint) {
-        guard currentPoseIndex < poseData.count else { return (1.0, CGPoint(x: 0.5, y: 0.5)) }
+    private func getTargetPoseReferences() -> (height: Double, center: CGPoint, width: Double) {
+        guard currentPoseIndex < poseData.count else { return (1.0, CGPoint(x: 0.5, y: 0.5), 0.3) }
         
         let targetPose = poseData[currentPoseIndex]
         
@@ -225,7 +200,82 @@ struct LatihanView: View {
             targetCenter.y = singleHip.y
         }
         
-        return (targetHeight, targetCenter)
+        // Calculate reference body width
+        var targetWidth: Double = 0.3 // Default
+        if let leftShoulder = targetPose.joints["leftShoulder"],
+           let rightShoulder = targetPose.joints["rightShoulder"] {
+            let shoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+            targetWidth = shoulderWidth
+        }
+        
+        // Also consider hip width
+        if let leftHip = targetPose.joints["leftHip"],
+           let rightHip = targetPose.joints["rightHip"] {
+            let hipWidth = abs(leftHip.x - rightHip.x)
+            // Use the larger of shoulder or hip width
+            targetWidth = max(targetWidth, hipWidth)
+        }
+        
+        return (targetHeight, targetCenter, targetWidth)
+    }
+    
+    // Transform target pose point to match user's proportions
+    private func transformTargetPoint(_ targetPoint: CGPoint, userDimensions: (height: Double, center: CGPoint, width: Double, valid: Bool), targetReferences: (height: Double, center: CGPoint, width: Double)) -> CGPoint {
+        guard userDimensions.valid else { return targetPoint }
+        
+        // Get additional reference measurements for aspect ratio adjustment
+        let targetPose = poseData[currentPoseIndex]
+        
+        // Scale and shift the target point with separate horizontal and vertical scaling
+        let verticalScaleFactor = (targetReferences.height > 0.01) ? userDimensions.height / targetReferences.height : 1.0
+        
+        // Calculate horizontal scale factor based on body width proportion
+        let widthRatio = (targetReferences.width > 0.01) ? userDimensions.width / targetReferences.width : 1.0
+        
+        // Use a blended scale factor to accommodate different body types
+        // This reduces the impact of extreme width differences while preserving overall proportions
+        let horizontalScaleFactor = (widthRatio + verticalScaleFactor) / 2.0
+        
+        // Calculate the adjusted position with separate horizontal and vertical scaling
+        let relativeX = targetPoint.x - targetReferences.center.x
+        let relativeY = targetPoint.y - targetReferences.center.y
+        
+        let adjustedX = userDimensions.center.x + relativeX * horizontalScaleFactor
+        let adjustedY = userDimensions.center.y + relativeY * verticalScaleFactor
+        
+        // Keep points within bounds
+        let boundedX = min(max(adjustedX, 0.01), 0.99)
+        let boundedY = min(max(adjustedY, 0.01), 0.99)
+        
+        return CGPoint(x: boundedX, y: boundedY)
+    }
+    
+    // Calculate angle between three joints
+    private func calculateAngle(joint1: CGPoint?, joint2: CGPoint?, joint3: CGPoint?) -> Double? {
+        guard let p1 = joint1, let p2 = joint2, let p3 = joint3 else { return nil }
+        
+        // Calculate vectors
+        let v1x = p1.x - p2.x
+        let v1y = p1.y - p2.y
+        let v2x = p3.x - p2.x
+        let v2y = p3.y - p2.y
+        
+        // Calculate dot product
+        let dotProduct = v1x * v2x + v1y * v2y
+        
+        // Calculate magnitudes
+        let mag1 = sqrt(v1x * v1x + v1y * v1y)
+        let mag2 = sqrt(v2x * v2x + v2y * v2y)
+        
+        // Calculate angle in radians
+        if mag1 > 0.0001 && mag2 > 0.0001 {
+            let cosAngle = dotProduct / (mag1 * mag2)
+            // Clamp to valid range to avoid precision issues
+            let clampedCosAngle = max(-1, min(1, cosAngle))
+            return Foundation.acos(clampedCosAngle)
+        }
+        
+        return nil
     }
     
     // Check if current pose matches target pose
@@ -240,6 +290,75 @@ struct LatihanView: View {
         let userDimensions = calculateBodyDimensions()
         let targetReferences = getTargetPoseReferences()
         
+        // Track the worst joint mismatch
+        var worstJointDistance: Double = 0
+        var criticalJointsMismatched = false
+        
+        // Define critical joints that must be very precise
+        let criticalJoints: [HumanBodyPoseObservation.JointName] = [
+            .leftShoulder, .rightShoulder,
+            .leftElbow, .rightElbow,
+            .leftWrist, .rightWrist
+        ]
+        
+        // Stricter threshold for critical joints - but more lenient than before
+        let criticalJointThreshold: Double = 0.15 // Increased from 0.08
+        
+        // Calculate important limb angles for both user and target pose
+        var totalAngleDifference: Double = 0
+        var validAngles = 0
+        
+        // Important angles to check (joint triplets that form angles)
+        let angleConfigurations: [(joint1: HumanBodyPoseObservation.JointName, 
+                                  joint2: HumanBodyPoseObservation.JointName, 
+                                  joint3: HumanBodyPoseObservation.JointName)] = [
+            // Arm angles
+            (.leftShoulder, .leftElbow, .leftWrist),
+            (.rightShoulder, .rightElbow, .rightWrist),
+            // Shoulder line
+            (.leftShoulder, .neck, .rightShoulder),
+            // Leg angles
+            (.leftHip, .leftKnee, .leftAnkle),
+            (.rightHip, .rightKnee, .rightAnkle),
+            // Torso angles
+            (.neck, .leftShoulder, .leftHip),
+            (.neck, .rightShoulder, .rightHip)
+        ]
+        
+        // Check angles
+        for angleConfig in angleConfigurations {
+            let userJoint1 = poseViewModel.detectedBodyParts[angleConfig.joint1]
+            let userJoint2 = poseViewModel.detectedBodyParts[angleConfig.joint2]
+            let userJoint3 = poseViewModel.detectedBodyParts[angleConfig.joint3]
+            
+            let joint1Key = jointNameToKey(angleConfig.joint1)
+            let joint2Key = jointNameToKey(angleConfig.joint2)
+            let joint3Key = jointNameToKey(angleConfig.joint3)
+            
+            let targetJoint1 = targetPose.joints[joint1Key].map { CGPoint(x: $0.x, y: $0.y) }
+            let targetJoint2 = targetPose.joints[joint2Key].map { CGPoint(x: $0.x, y: $0.y) }
+            let targetJoint3 = targetPose.joints[joint3Key].map { CGPoint(x: $0.x, y: $0.y) }
+            
+            if let userAngle = calculateAngle(joint1: userJoint1, joint2: userJoint2, joint3: userJoint3),
+               let targetAngle = calculateAngle(joint1: targetJoint1, joint2: targetJoint2, joint3: targetJoint3) {
+                
+                let angleDiff = abs(userAngle - targetAngle)
+                
+                // Normalize to 0-1 range for easier comparison with positional thresholds
+                // Pi radians (180 degrees) would be a maximum difference
+                let normalizedDiff = angleDiff / .pi
+                
+                totalAngleDifference += normalizedDiff
+                validAngles += 1
+                
+                // If this is a critical angle and the difference is too large, mark as mismatched
+                if (angleConfig.joint2 == .leftElbow || angleConfig.joint2 == .rightElbow) && normalizedDiff > 0.25 { // Increased from 0.15
+                    criticalJointsMismatched = true
+                }
+            }
+        }
+        
+        // Process positional differences
         for (jointName, detectedPoint) in poseViewModel.detectedBodyParts {
             let jointKey = jointNameToKey(jointName)
             
@@ -251,7 +370,26 @@ struct LatihanView: View {
                     transformTargetPoint(targetPoint, userDimensions: userDimensions, targetReferences: targetReferences) : targetPoint
                 
                 let dist = distance(detectedPoint, adjustedTargetPoint)
-                totalDistance += dist
+                
+                // Track the worst joint mismatch
+                if dist > worstJointDistance {
+                    worstJointDistance = dist
+                }
+                
+                // Check if critical joints are mismatched
+                if criticalJoints.contains(jointName) && dist > criticalJointThreshold {
+                    criticalJointsMismatched = true
+                }
+                
+                // Apply joint-specific weighting to emphasize important joints - but with reduced weights
+                var weightedDist = dist
+                if jointName == .leftWrist || jointName == .rightWrist {
+                    weightedDist *= 1.3 // Reduced from 1.5
+                } else if jointName == .leftElbow || jointName == .rightElbow {
+                    weightedDist *= 1.2 // Reduced from 1.3
+                }
+                
+                totalDistance += weightedDist
                 validJoints += 1
             }
         }
@@ -259,7 +397,19 @@ struct LatihanView: View {
         guard validJoints > 0 else { return false }
         
         let averageDistance = totalDistance / Double(validJoints)
-        return averageDistance < poseMatchThreshold
+        
+        // Calculate average angle difference if we have valid angles
+        let averageAngleDifference = validAngles > 0 ? totalAngleDifference / Double(validAngles) : 1.0
+        
+        // For a pose to be considered matched, ALL of these conditions must be true:
+        // 1. Average distance below threshold
+        // 2. No individual joint deviation too large
+        // 3. No critical joint mismatches
+        // 4. Average angle difference below threshold
+        return averageDistance < poseMatchThreshold && 
+               worstJointDistance < (poseMatchThreshold * 2.5) && // Increased from 2.2
+               !criticalJointsMismatched && 
+               averageAngleDifference < 0.20 // Increased from 0.12 (about 36 degrees max difference now)
     }
     
     // Give voice instruction for worst positioned joint
