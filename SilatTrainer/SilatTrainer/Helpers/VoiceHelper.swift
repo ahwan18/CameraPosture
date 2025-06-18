@@ -19,7 +19,7 @@ class VoiceHelper {
     static let shared = VoiceHelper()
     private let synthesizer = AVSpeechSynthesizer()
     private var lastSpokenTime: Date?
-    private let minimumTimeBetweenSpeeches: TimeInterval = 2.0 // Minimum 2 seconds between speeches
+    private let minimumTimeBetweenSpeeches: TimeInterval = 0.5 // Minimum 2 seconds between speeches
     
     private init() {}
     
