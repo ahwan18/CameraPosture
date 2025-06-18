@@ -37,9 +37,9 @@ struct LatihanView: View {
 
 
     private let holdDuration: Double = 8.0 // 8 seconds
-    private let poseMatchThreshold: Double = 0.095 // Significantly reduced for very high accuracy requirements
+    private let poseMatchThreshold: Double = 0.1 // Significantly reduced for very high accuracy requirements
     private let voiceInstructionInterval: TimeInterval = 4.0 // Minimum 4 seconds between voice instructions
-    private let poseTolerance: TimeInterval = 0.095 // Further reduced for even stricter pose maintenance
+    private let poseTolerance: TimeInterval = 0.1 // Further reduced for even stricter pose maintenance
     private let correctionGracePeriod: TimeInterval = 2.0 // Grace period after correction before allowing pose match
     
     private func checkAndAnnounceDistance() {
@@ -122,6 +122,91 @@ struct LatihanView: View {
         return sqrt(dx * dx + dy * dy)
     }
     
+    // Calculate body dimensions for adaptive pose matching
+    private func calculateBodyDimensions() -> (height: Double, center: CGPoint, valid: Bool) {
+        // Need at least neck and one ankle for a reasonable height estimate
+        guard let neck = poseViewModel.detectedBodyParts[.neck],
+              let leftAnkle = poseViewModel.detectedBodyParts[.leftAnkle] ?? poseViewModel.detectedBodyParts[.rightAnkle] else {
+            return (1.0, CGPoint(x: 0.5, y: 0.5), false)
+        }
+        
+        // Calculate body height
+        let bodyHeight = abs(neck.y - leftAnkle.y)
+        
+        // Find center point
+        var centerX: CGFloat = 0.5
+        var centerY: CGFloat = 0.5
+        
+        if let leftHip = poseViewModel.detectedBodyParts[.leftHip], 
+           let rightHip = poseViewModel.detectedBodyParts[.rightHip] {
+            centerX = (leftHip.x + rightHip.x) / 2
+            centerY = (leftHip.y + rightHip.y) / 2
+        } else if let singleHip = poseViewModel.detectedBodyParts[.leftHip] ?? poseViewModel.detectedBodyParts[.rightHip] {
+            centerX = singleHip.x
+            centerY = singleHip.y
+        } else if let neckPos = poseViewModel.detectedBodyParts[.neck] {
+            centerX = neckPos.x
+            centerY = neckPos.y + 0.15
+        }
+        
+        return (bodyHeight, CGPoint(x: centerX, y: centerY), true)
+    }
+    
+    // Transform target pose point to match user's proportions
+    private func transformTargetPoint(_ targetPoint: CGPoint, userDimensions: (height: Double, center: CGPoint, valid: Bool), targetReferences: (height: Double, center: CGPoint)) -> CGPoint {
+        guard userDimensions.valid else { return targetPoint }
+        
+        // Scale and shift the target point
+        let scaleFactor = (targetReferences.height > 0.01) ? userDimensions.height / targetReferences.height : 1.0
+        
+        // Calculate the adjusted position
+        let relativeX = targetPoint.x - targetReferences.center.x
+        let relativeY = targetPoint.y - targetReferences.center.y
+        
+        let adjustedX = userDimensions.center.x + relativeX * scaleFactor
+        let adjustedY = userDimensions.center.y + relativeY * scaleFactor
+        
+        // Keep points within bounds
+        let boundedX = min(max(adjustedX, 0.01), 0.99)
+        let boundedY = min(max(adjustedY, 0.01), 0.99)
+        
+        return CGPoint(x: boundedX, y: boundedY)
+    }
+    
+    // Get target pose reference dimensions
+    private func getTargetPoseReferences() -> (height: Double, center: CGPoint) {
+        guard currentPoseIndex < poseData.count else { return (1.0, CGPoint(x: 0.5, y: 0.5)) }
+        
+        let targetPose = poseData[currentPoseIndex]
+        
+        // Get reference points
+        var targetNeckY: CGFloat = 0.3
+        var targetAnkleY: CGFloat = 0.9
+        var targetCenter = CGPoint(x: 0.5, y: 0.5)
+        
+        if let neckJoint = targetPose.joints["neck"] {
+            targetNeckY = neckJoint.y
+        }
+        
+        if let leftAnkle = targetPose.joints["leftAnkle"] ?? targetPose.joints["rightAnkle"] {
+            targetAnkleY = leftAnkle.y
+        }
+        
+        // Calculate target height
+        let targetHeight = abs(targetAnkleY - targetNeckY)
+        
+        // Calculate center
+        if let leftHip = targetPose.joints["leftHip"], let rightHip = targetPose.joints["rightHip"] {
+            targetCenter.x = (leftHip.x + rightHip.x) / 2
+            targetCenter.y = (leftHip.y + rightHip.y) / 2
+        } else if let singleHip = targetPose.joints["leftHip"] ?? targetPose.joints["rightHip"] {
+            targetCenter.x = singleHip.x
+            targetCenter.y = singleHip.y
+        }
+        
+        return (targetHeight, targetCenter)
+    }
+    
     // Check if current pose matches target pose
     private func checkPoseMatch() -> Bool {
         guard currentPoseIndex < poseData.count else { return false }
@@ -130,12 +215,21 @@ struct LatihanView: View {
         var totalDistance: Double = 0
         var validJoints = 0
         
+        // Get body dimensions for adaptive matching
+        let userDimensions = calculateBodyDimensions()
+        let targetReferences = getTargetPoseReferences()
+        
         for (jointName, detectedPoint) in poseViewModel.detectedBodyParts {
             let jointKey = jointNameToKey(jointName)
             
             if let targetJoint = targetPose.joints[jointKey] {
                 let targetPoint = CGPoint(x: targetJoint.x, y: targetJoint.y)
-                let dist = distance(detectedPoint, targetPoint)
+                
+                // Apply adaptive scaling to target point if valid user dimensions
+                let adjustedTargetPoint = userDimensions.valid ? 
+                    transformTargetPoint(targetPoint, userDimensions: userDimensions, targetReferences: targetReferences) : targetPoint
+                
+                let dist = distance(detectedPoint, adjustedTargetPoint)
                 totalDistance += dist
                 validJoints += 1
             }
@@ -231,7 +325,7 @@ struct LatihanView: View {
             if !isPoseMatched {
                 // Start holding timer
                 isPoseMatched = true
-                countdownValue = 8
+                countdownValue = 3
                 startHoldTimer()
                 
                 if !isProcessingVoice {
