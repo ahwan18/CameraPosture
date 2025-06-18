@@ -135,19 +135,37 @@ struct PoseOverlayView: View {
             targetCenter.y = singleHip.y
         }
         
+        // Calculate shoulder width for aspect ratio adjustment
+        var targetShoulderWidth: CGFloat = 0.15 // Default if not found
+        if let leftShoulder = targetPose.joints["leftShoulder"], 
+           let rightShoulder = targetPose.joints["rightShoulder"] {
+            targetShoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+        }
+        
+        // Get user's shoulder width
+        var userShoulderWidth: CGFloat = 0.15
+        if let leftShoulder = bodyParts[.leftShoulder],
+           let rightShoulder = bodyParts[.rightShoulder] {
+            userShoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+        }
+        
         // Scale and shift the target point
         let userHeight = userBodyDimensions.height
         let userCenter = userBodyDimensions.center
         
         // Avoid division by zero
-        let scaleFactor = (targetHeight > 0.01) ? userHeight / targetHeight : 1.0
+        let verticalScaleFactor = (targetHeight > 0.01) ? userHeight / targetHeight : 1.0
         
-        // Calculate the adjusted position
+        // Calculate horizontal scale factor - make it wider by multiplying by 1.25
+        let horizontalScaleFactor = (targetShoulderWidth > 0.01) ? 
+            (userShoulderWidth / targetShoulderWidth) * 1.25 : verticalScaleFactor * 1.25
+        
+        // Calculate the adjusted position with separate horizontal and vertical scaling
         let relativeX = targetPoint.x - targetCenter.x
         let relativeY = targetPoint.y - targetCenter.y
         
-        let adjustedX = userCenter.x + relativeX * scaleFactor
-        let adjustedY = userCenter.y + relativeY * scaleFactor
+        let adjustedX = userCenter.x + relativeX * horizontalScaleFactor
+        let adjustedY = userCenter.y + relativeY * verticalScaleFactor
         
         // Keep points within screen bounds
         let boundedX = min(max(adjustedX, 0.01), 0.99)

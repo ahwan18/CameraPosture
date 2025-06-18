@@ -156,15 +156,36 @@ struct LatihanView: View {
     private func transformTargetPoint(_ targetPoint: CGPoint, userDimensions: (height: Double, center: CGPoint, valid: Bool), targetReferences: (height: Double, center: CGPoint)) -> CGPoint {
         guard userDimensions.valid else { return targetPoint }
         
-        // Scale and shift the target point
-        let scaleFactor = (targetReferences.height > 0.01) ? userDimensions.height / targetReferences.height : 1.0
+        // Get additional reference measurements for aspect ratio adjustment
+        let targetPose = poseData[currentPoseIndex]
         
-        // Calculate the adjusted position
+        // Calculate shoulder width for aspect ratio adjustment
+        var targetShoulderWidth: CGFloat = 0.15 // Default if not found
+        if let leftShoulder = targetPose.joints["leftShoulder"], 
+           let rightShoulder = targetPose.joints["rightShoulder"] {
+            targetShoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+        }
+        
+        // Get user's shoulder width
+        var userShoulderWidth: CGFloat = 0.15
+        if let leftShoulder = poseViewModel.detectedBodyParts[.leftShoulder],
+           let rightShoulder = poseViewModel.detectedBodyParts[.rightShoulder] {
+            userShoulderWidth = abs(leftShoulder.x - rightShoulder.x)
+        }
+        
+        // Scale and shift the target point with separate horizontal and vertical scaling
+        let verticalScaleFactor = (targetReferences.height > 0.01) ? userDimensions.height / targetReferences.height : 1.0
+        
+        // Calculate horizontal scale factor - make it wider by multiplying by 1.25
+        let horizontalScaleFactor = (targetShoulderWidth > 0.01) ? 
+            (userShoulderWidth / targetShoulderWidth) * 1.25 : verticalScaleFactor * 1.25
+        
+        // Calculate the adjusted position with separate horizontal and vertical scaling
         let relativeX = targetPoint.x - targetReferences.center.x
         let relativeY = targetPoint.y - targetReferences.center.y
         
-        let adjustedX = userDimensions.center.x + relativeX * scaleFactor
-        let adjustedY = userDimensions.center.y + relativeY * scaleFactor
+        let adjustedX = userDimensions.center.x + relativeX * horizontalScaleFactor
+        let adjustedY = userDimensions.center.y + relativeY * verticalScaleFactor
         
         // Keep points within bounds
         let boundedX = min(max(adjustedX, 0.01), 0.99)
