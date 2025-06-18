@@ -15,6 +15,7 @@ class PoseLoader {
             print("Failed to load poseData.json")
             return []
         }
+        print("Successfully loaded \(decoded.count) poses")
         return decoded
     }
 }
