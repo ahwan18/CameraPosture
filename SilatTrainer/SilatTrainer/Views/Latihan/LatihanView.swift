@@ -278,12 +278,73 @@ struct LatihanView: View {
         return nil
     }
     
+    // Calculate distance between joints in the target pose
+    private func calculateTargetJointDistance(_ joint1Key: String, _ joint2Key: String, targetPose: PoseData) -> Double? {
+        guard let joint1 = targetPose.joints[joint1Key], 
+              let joint2 = targetPose.joints[joint2Key] else {
+            return nil
+        }
+        
+        let point1 = CGPoint(x: joint1.x, y: joint1.y)
+        let point2 = CGPoint(x: joint2.x, y: joint2.y)
+        
+        return distance(point1, point2)
+    }
+    
+    // Check if two joints are too close in the target pose
+    private func areJointsTooClose(_ joint1Key: String, _ joint2Key: String, targetPose: PoseData) -> Bool {
+        guard let distance = calculateTargetJointDistance(joint1Key, joint2Key, targetPose: targetPose) else {
+            return false
+        }
+        
+        // If joints are closer than this threshold in the reference pose, 
+        // they're considered "too close" and need special handling
+        let proximityThreshold: Double = 0.05
+        return distance < proximityThreshold
+    }
+
+    // Get a joint importance weight based on reference pose
+    private func getJointImportance(jointName: HumanBodyPoseObservation.JointName, targetPose: PoseData) -> Double {
+        let jointKey = jointNameToKey(jointName)
+        var importance: Double = 1.0
+        
+        // Check special cases where joints might be too close to each other
+        if jointName == .leftHip || jointName == .rightHip {
+            // If hips are too close together in reference, reduce their individual importance
+            if areJointsTooClose("leftHip", "rightHip", targetPose: targetPose) {
+                importance = 0.5
+            }
+        }
+        
+        if jointName == .leftShoulder || jointName == .rightShoulder {
+            // If shoulders are too close together in reference, reduce their individual importance
+            if areJointsTooClose("leftShoulder", "rightShoulder", targetPose: targetPose) {
+                importance = 0.5
+            }
+        }
+        
+        if jointName == .leftWrist || jointName == .rightWrist {
+            // If wrists are too close together in reference, reduce their individual importance
+            if areJointsTooClose("leftWrist", "rightWrist", targetPose: targetPose) {
+                importance = 0.5
+            }
+        }
+        
+        // Special handling for pose a3 where hips are known to be close
+        if targetPose.poseId == "a3" && (jointName == .leftHip || jointName == .rightHip) {
+            importance = 0.4 // Further reduce importance for a3 hips specifically
+        }
+        
+        return importance
+    }
+    
     // Check if current pose matches target pose
     private func checkPoseMatch() -> Bool {
         guard currentPoseIndex < poseData.count else { return false }
         
         let targetPose = poseData[currentPoseIndex]
         var totalDistance: Double = 0
+        var totalWeight: Double = 0 // Track total weight for weighted average
         var validJoints = 0
         
         // Get body dimensions for adaptive matching
@@ -310,8 +371,8 @@ struct LatihanView: View {
         
         // Important angles to check (joint triplets that form angles)
         let angleConfigurations: [(joint1: HumanBodyPoseObservation.JointName, 
-                                  joint2: HumanBodyPoseObservation.JointName, 
-                                  joint3: HumanBodyPoseObservation.JointName)] = [
+                                   joint2: HumanBodyPoseObservation.JointName, 
+                                   joint3: HumanBodyPoseObservation.JointName)] = [
             // Arm angles
             (.leftShoulder, .leftElbow, .leftWrist),
             (.rightShoulder, .rightElbow, .rightWrist),
@@ -325,6 +386,56 @@ struct LatihanView: View {
             (.neck, .rightShoulder, .rightHip)
         ]
         
+        // Process positional differences with adjusted weights
+        for (jointName, detectedPoint) in poseViewModel.detectedBodyParts {
+            let jointKey = jointNameToKey(jointName)
+            
+            if let targetJoint = targetPose.joints[jointKey] {
+                let targetPoint = CGPoint(x: targetJoint.x, y: targetJoint.y)
+                
+                // Apply adaptive scaling to target point if valid user dimensions
+                let adjustedTargetPoint = userDimensions.valid ? 
+                    transformTargetPoint(targetPoint, userDimensions: userDimensions, targetReferences: targetReferences) : targetPoint
+                
+                let dist = distance(detectedPoint, adjustedTargetPoint)
+                
+                // Track the worst joint mismatch for non-close joints
+                if dist > worstJointDistance && getJointImportance(jointName: jointName, targetPose: targetPose) > 0.7 {
+                    worstJointDistance = dist
+                }
+                
+                // Check if critical joints are mismatched
+                if criticalJoints.contains(jointName) && dist > criticalJointThreshold {
+                    // Only consider critical mismatch if joints aren't too close in reference pose
+                    let jointImportance = getJointImportance(jointName: jointName, targetPose: targetPose)
+                    if jointImportance > 0.7 {
+                        criticalJointsMismatched = true
+                    }
+                }
+                
+                // Apply joint-specific weighting to emphasize important joints
+                var weightedDist = dist
+                let jointImportance = getJointImportance(jointName: jointName, targetPose: targetPose)
+                
+                if jointName == .leftWrist || jointName == .rightWrist {
+                    weightedDist *= 1.3 * jointImportance // Apply joint importance
+                } else if jointName == .leftElbow || jointName == .rightElbow {
+                    weightedDist *= 1.2 * jointImportance // Apply joint importance
+                } else {
+                    weightedDist *= jointImportance // Apply standard joint importance
+                }
+                
+                totalDistance += weightedDist
+                totalWeight += jointImportance
+                validJoints += 1
+            }
+        }
+        
+        guard validJoints > 0 else { return false }
+        
+        // Calculate weighted average distance
+        let averageDistance = (totalWeight > 0) ? totalDistance / totalWeight : totalDistance / Double(validJoints)
+        
         // Check angles
         for angleConfig in angleConfigurations {
             let userJoint1 = poseViewModel.detectedBodyParts[angleConfig.joint1]
@@ -334,6 +445,14 @@ struct LatihanView: View {
             let joint1Key = jointNameToKey(angleConfig.joint1)
             let joint2Key = jointNameToKey(angleConfig.joint2)
             let joint3Key = jointNameToKey(angleConfig.joint3)
+            
+            // Skip angle check if any of the joints are too close in reference pose
+            let skipAngleCheck = areJointsTooClose(joint1Key, joint2Key, targetPose: targetPose) ||
+                                areJointsTooClose(joint2Key, joint3Key, targetPose: targetPose)
+            
+            if skipAngleCheck {
+                continue
+            }
             
             let targetJoint1 = targetPose.joints[joint1Key].map { CGPoint(x: $0.x, y: $0.y) }
             let targetJoint2 = targetPose.joints[joint2Key].map { CGPoint(x: $0.x, y: $0.y) }
@@ -352,64 +471,24 @@ struct LatihanView: View {
                 validAngles += 1
                 
                 // If this is a critical angle and the difference is too large, mark as mismatched
-                if (angleConfig.joint2 == .leftElbow || angleConfig.joint2 == .rightElbow) && normalizedDiff > 0.25 { // Increased from 0.15
+                if (angleConfig.joint2 == .leftElbow || angleConfig.joint2 == .rightElbow) && normalizedDiff > 0.25 {
                     criticalJointsMismatched = true
                 }
             }
         }
-        
-        // Process positional differences
-        for (jointName, detectedPoint) in poseViewModel.detectedBodyParts {
-            let jointKey = jointNameToKey(jointName)
-            
-            if let targetJoint = targetPose.joints[jointKey] {
-                let targetPoint = CGPoint(x: targetJoint.x, y: targetJoint.y)
-                
-                // Apply adaptive scaling to target point if valid user dimensions
-                let adjustedTargetPoint = userDimensions.valid ? 
-                    transformTargetPoint(targetPoint, userDimensions: userDimensions, targetReferences: targetReferences) : targetPoint
-                
-                let dist = distance(detectedPoint, adjustedTargetPoint)
-                
-                // Track the worst joint mismatch
-                if dist > worstJointDistance {
-                    worstJointDistance = dist
-                }
-                
-                // Check if critical joints are mismatched
-                if criticalJoints.contains(jointName) && dist > criticalJointThreshold {
-                    criticalJointsMismatched = true
-                }
-                
-                // Apply joint-specific weighting to emphasize important joints - but with reduced weights
-                var weightedDist = dist
-                if jointName == .leftWrist || jointName == .rightWrist {
-                    weightedDist *= 1.3 // Reduced from 1.5
-                } else if jointName == .leftElbow || jointName == .rightElbow {
-                    weightedDist *= 1.2 // Reduced from 1.3
-                }
-                
-                totalDistance += weightedDist
-                validJoints += 1
-            }
-        }
-        
-        guard validJoints > 0 else { return false }
-        
-        let averageDistance = totalDistance / Double(validJoints)
         
         // Calculate average angle difference if we have valid angles
         let averageAngleDifference = validAngles > 0 ? totalAngleDifference / Double(validAngles) : 1.0
         
         // For a pose to be considered matched, ALL of these conditions must be true:
         // 1. Average distance below threshold
-        // 2. No individual joint deviation too large
+        // 2. No individual joint deviation too large (for important joints)
         // 3. No critical joint mismatches
         // 4. Average angle difference below threshold
         return averageDistance < poseMatchThreshold && 
-               worstJointDistance < (poseMatchThreshold * 2.5) && // Increased from 2.2
+               worstJointDistance < (poseMatchThreshold * 2.5) && 
                !criticalJointsMismatched && 
-               averageAngleDifference < 0.20 // Increased from 0.12 (about 36 degrees max difference now)
+               averageAngleDifference < 0.20
     }
     
     // Give voice instruction for worst positioned joint
