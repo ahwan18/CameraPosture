@@ -47,6 +47,8 @@ class PoseEstimationViewModel: NSObject, AVCaptureVideoDataOutputSampleBufferDel
             BodyConnection(from: .leftHip, to: .leftKnee),
             BodyConnection(from: .leftKnee, to: .leftAnkle)
         ]
+
+        print("setupBodyConnections : \(bodyConnections)")
     }
 
     // 4.
