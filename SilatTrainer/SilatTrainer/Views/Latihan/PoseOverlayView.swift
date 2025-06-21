@@ -11,7 +11,7 @@ import Vision
 // Tampilan untuk menampilkan overlay pose tubuh manusia pada layar
 // overlay berupa garis dan titik-titik sendi
 struct PoseOverlayView: View {
-
+    
     // Menyimpan koordinat titik-titik sendi tubuh dan koneksi antar sendi
     // bodyParts: Kamus yang memetakan nama sendi ke koordinat titiknya
     // connections: Daftar koneksi antar sendi untuk menggambar garis tubuh
@@ -153,8 +153,8 @@ struct PoseOverlayView: View {
         
         // Calculate target width
         var targetWidth: CGFloat = 0.3 // Default if not found
-        if let leftShoulder = targetPose.joints["leftShoulder"], 
-           let rightShoulder = targetPose.joints["rightShoulder"] {
+        if let leftShoulder = targetPose.joints["leftShoulder"],
+            let rightShoulder = targetPose.joints["rightShoulder"] {
             let shoulderWidth = abs(leftShoulder.x - rightShoulder.x)
             targetWidth = shoulderWidth
         }
@@ -210,9 +210,77 @@ struct PoseOverlayView: View {
         return targetBodyParts
     }
     
+    private func lineColor(for connection: BodyConnection) -> Color {
+        // Kita hanya perlu memeriksa kesalahan jika panah pemandu aktif (kondisi umum)
+        guard showGuideArrows,
+              let targetPose = targetPose,
+              let fromPoint = bodyParts[connection.from],
+              let toPoint = bodyParts[connection.to]
+        else {
+            // Jika tidak, warna defaultnya selalu hijau
+            return .green
+        }
+
+        let userBodyDimensions = calculateBodyDimensions()
+        let fromKey = jointNameToKey(connection.from)
+        let toKey = jointNameToKey(connection.to)
+
+        // Periksa kesalahan untuk sendi 'from'
+        if let targetFromJoint = targetPose.joints[fromKey] {
+            let originalTargetFrom = CGPoint(x: targetFromJoint.x, y: targetFromJoint.y)
+            let adjustedTargetFrom = userBodyDimensions.valid ? transformTargetPoint(originalTargetFrom, userBodyDimensions: userBodyDimensions) : originalTargetFrom
+            let dx = adjustedTargetFrom.x - fromPoint.x
+            let dy = adjustedTargetFrom.y - fromPoint.y
+            if sqrt(dx * dx + dy * dy) > 0.15 {
+                return Color(red: 0.8, green: 0, blue: 0.1) // Jika error, langsung kembalikan merah
+            }
+        }
+
+        // Periksa kesalahan untuk sendi 'to'
+        if let targetToJoint = targetPose.joints[toKey] {
+            let originalTargetTo = CGPoint(x: targetToJoint.x, y: targetToJoint.y)
+            let adjustedTargetTo = userBodyDimensions.valid ? transformTargetPoint(originalTargetTo, userBodyDimensions: userBodyDimensions) : originalTargetTo
+            let dx = adjustedTargetTo.x - toPoint.x
+            let dy = adjustedTargetTo.y - toPoint.y
+            if sqrt(dx * dx + dy * dy) > 0.15 {
+                return Color(red: 0.8, green: 0, blue: 0.1) // Jika error, langsung kembalikan merah
+            }
+        }
+
+        // Jika tidak ada sendi yang error, kembalikan hijau
+        return .green
+    }
+    
+    private func jointColor(for jointName: HumanBodyPoseObservation.JointName) -> Color {
+        // Sama seperti lineColor, periksa dulu kondisi umumnya
+        guard showGuideArrows,
+              let targetPose = targetPose,
+              let currentPoint = bodyParts[jointName]
+        else {
+            return .green // Warna default jika tidak dalam mode koreksi
+        }
+
+        let userBodyDimensions = calculateBodyDimensions()
+        let jointKey = jointNameToKey(jointName)
+
+        if let targetJoint = targetPose.joints[jointKey] {
+            let originalTarget = CGPoint(x: targetJoint.x, y: targetJoint.y)
+            let adjustedTarget = userBodyDimensions.valid ? transformTargetPoint(originalTarget, userBodyDimensions: userBodyDimensions) : originalTarget
+            let dx = adjustedTarget.x - currentPoint.x
+            let dy = adjustedTarget.y - currentPoint.y
+            
+            if sqrt(dx * dx + dy * dy) > 0.15 {
+                return Color(red: 0.8, green: 0, blue: 0.1) // Sendi ini salah
+            }
+        }
+
+        // Jika tidak ada kesalahan, warnanya hijau
+        return .green
+    }
+    
     var body: some View {
         GeometryReader { geometry in
-        
+            
             // 2. Membuat lapisan ZStack untuk menggambar sendi dan koneksi
             ZStack {
                 // Calculate user body dimensions for adaptive transformations
@@ -227,10 +295,10 @@ struct PoseOverlayView: View {
                            let toPoint = targetBodyParts[connection.to] {
                             Path { path in
                                 // Transform target points to match user's proportions
-                                let adjustedFromPoint = userBodyDimensions.valid ? 
-                                    transformTargetPoint(fromPoint, userBodyDimensions: userBodyDimensions) : fromPoint
-                                let adjustedToPoint = userBodyDimensions.valid ? 
-                                    transformTargetPoint(toPoint, userBodyDimensions: userBodyDimensions) : toPoint
+                                let adjustedFromPoint = userBodyDimensions.valid ?
+                                transformTargetPoint(fromPoint, userBodyDimensions: userBodyDimensions) : fromPoint
+                                let adjustedToPoint = userBodyDimensions.valid ?
+                                transformTargetPoint(toPoint, userBodyDimensions: userBodyDimensions) : toPoint
                                 
                                 // Mengonversi koordinat titik ke koordinat tampilan
                                 let fromPointInView = CGPoint(
@@ -246,7 +314,7 @@ struct PoseOverlayView: View {
                                 path.move(to: fromPointInView)
                                 path.addLine(to: toPointInView)
                             }
-                            .stroke(Color.blue.opacity(0.7), lineWidth: 3) // Garis biru semi-transparan
+                            .stroke(Color.blue.opacity(0.5), lineWidth: 3) // Garis biru semi-transparan
                         }
                     }
                 }
@@ -257,8 +325,8 @@ struct PoseOverlayView: View {
                         if let joint = targetPose.joints[jointKey], let jointName = keyToJointName(jointKey) {
                             // Transform target point to match user's proportions
                             let originalPoint = CGPoint(x: joint.x, y: joint.y)
-                            let adjustedPoint = userBodyDimensions.valid ? 
-                                transformTargetPoint(originalPoint, userBodyDimensions: userBodyDimensions) : originalPoint
+                            let adjustedPoint = userBodyDimensions.valid ?
+                            transformTargetPoint(originalPoint, userBodyDimensions: userBodyDimensions) : originalPoint
                             
                             let targetPoint = CGPoint(
                                 x: adjustedPoint.x * geometry.size.width,
@@ -266,12 +334,12 @@ struct PoseOverlayView: View {
                             )
                             
                             Circle()
-                                .fill(Color.blue.opacity(0.6))
+                                .fill(Color.blue.opacity(0.5))
                                 .frame(width: 12, height: 12)
                                 .position(targetPoint)
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.blue, lineWidth: 2)
+                                        .stroke(Color.blue.opacity(0.5), lineWidth: 2)
                                         .frame(width: 16, height: 16)
                                         .position(targetPoint)
                                 )
@@ -283,6 +351,10 @@ struct PoseOverlayView: View {
                 ForEach(connections) { connection in
                     if let fromPoint = bodyParts[connection.from],
                        let toPoint = bodyParts[connection.to] {
+                        
+                        // Panggil helper function untuk mendapatkan warna
+                        let color = lineColor(for: connection)
+                        
                         Path { path in
                             // Mengonversi koordinat titik ke koordinat tampilan
                             let fromPointInView = CGPoint(
@@ -298,31 +370,33 @@ struct PoseOverlayView: View {
                             path.move(to: fromPointInView)
                             path.addLine(to: toPointInView)
                         }
-                        .stroke(Color.green, lineWidth: 3) // Garis berwarna hijau dengan ketebalan 3
+                        .stroke(color, lineWidth: 5)
                     }
                 }
                 
                 // 3. Menggambar titik-titik sendi pada tampilan (user's current pose)
                 ForEach(Array(bodyParts.keys), id: \.self) { jointName in
                     if let point = bodyParts[jointName] {
+                        // Panggil helper function untuk mendapatkan warna titik
+                        let color = jointColor(for: jointName)
+                        
                         // Mengonversi koordinat titik sendi ke koordinat tampilan
                         let pointInView = CGPoint(
                             x: point.x * geometry.size.width,
                             y: point.y * geometry.size.height
                         )
                         
-                        // Membuat lingkaran putih untuk setiap titik sendi
+                        // Membuat lingkaran dengan warna dinamis untuk setiap titik sendi
                         Circle()
-                            .fill(.white)
+                            .fill(color) // Gunakan warna dinamis di sini
                             .frame(width: 10, height: 10)
                             .position(pointInView)
                             .overlay(
-                                ZStack{
-                                    // Menambahkan outline putih di sekitar lingkaran
-                                    Circle()
-                                        .stroke(Color.white, lineWidth: 1)
-                                        .frame(width: 12, height: 12)
-                                }
+                                // Tambahkan outline agar lebih terlihat
+                                Circle()
+                                    .stroke(color, lineWidth: 2)
+                                    .frame(width: 12, height: 12)
+                                    .position(pointInView)
                             )
                     }
                 }
@@ -335,57 +409,71 @@ struct PoseOverlayView: View {
                             let jointKey = jointNameToKey(jointName)
                             
                             if let targetJoint = targetPose.joints[jointKey] {
-                                // Convert to screen coordinates
-                                let currentPointInView = CGPoint(
-                                    x: currentPoint.x * geometry.size.width,
-                                    y: currentPoint.y * geometry.size.height
-                                )
-                                
-                                // Apply adaptive scaling to target point
+                                // Apply adaptive scaling to target point (these are normalized coordinates)
                                 let originalTargetPoint = CGPoint(x: targetJoint.x, y: targetJoint.y)
-                                let adjustedTargetPoint = userBodyDimensions.valid ? 
-                                    transformTargetPoint(originalTargetPoint, userBodyDimensions: userBodyDimensions) : originalTargetPoint
-                                let targetPointInView = CGPoint(
-                                    x: adjustedTargetPoint.x * geometry.size.width,
-                                    y: adjustedTargetPoint.y * geometry.size.height
-                                )
+                                let adjustedTargetPoint = userBodyDimensions.valid ?
+                                transformTargetPoint(originalTargetPoint, userBodyDimensions: userBodyDimensions) : originalTargetPoint
                                 
-                                let arrowInfo = getArrowInfo(from: currentPointInView, to: targetPointInView)
+                                // --- PERUBAHAN UTAMA DI SINI ---
+                                // 1. Hitung jarak dalam dunia normalisasi (0.0 - 1.0)
+                                let dx = adjustedTargetPoint.x - currentPoint.x
+                                let dy = adjustedTargetPoint.y - currentPoint.y
+                                let normalizedDistance = sqrt(dx * dx + dy * dy)
                                 
-                                // Only show arrow if distance is significant (more than 20 pixels)
-                                if arrowInfo.distance > 20 {
-                                    // Draw arrow
+                                // 2. Terapkan threshold 0.15
+                                if normalizedDistance > 0.15 {
+                                    // 3. Jika kondisi terpenuhi, lanjutkan menggambar panah
+                                    
+                                    // Convert to screen coordinates
+                                    let currentPointInView = CGPoint(
+                                        x: currentPoint.x * geometry.size.width,
+                                        y: currentPoint.y * geometry.size.height
+                                    )
+                                    let targetPointInView = CGPoint(
+                                        x: adjustedTargetPoint.x * geometry.size.width,
+                                        y: adjustedTargetPoint.y * geometry.size.height
+                                    )
+                                    
+                                    let arrowInfo = getArrowInfo(from: currentPointInView, to: targetPointInView)
+                                    
                                     Path { path in
-                                        let arrowLength: CGFloat = min(arrowInfo.distance * 0.7, 50)
-                                        let arrowHeadSize: CGFloat = 8
-                                        
-                                        // Arrow body
-                                        let endX = currentPointInView.x + cos(arrowInfo.angle) * arrowLength
-                                        let endY = currentPointInView.y + sin(arrowInfo.angle) * arrowLength
-                                        let endPoint = CGPoint(x: endX, y: endY)
-                                        
-                                        path.move(to: currentPointInView)
-                                        path.addLine(to: endPoint)
-                                        
-                                        // Arrow head
-                                        let angle1 = arrowInfo.angle + .pi * 0.8
-                                        let angle2 = arrowInfo.angle - .pi * 0.8
-                                        
-                                        let head1 = CGPoint(
-                                            x: endX + cos(angle1) * arrowHeadSize,
-                                            y: endY + sin(angle1) * arrowHeadSize
-                                        )
-                                        let head2 = CGPoint(
-                                            x: endX + cos(angle2) * arrowHeadSize,
-                                            y: endY + sin(angle2) * arrowHeadSize
-                                        )
-                                        
-                                        path.move(to: endPoint)
-                                        path.addLine(to: head1)
-                                        path.move(to: endPoint)
-                                        path.addLine(to: head2)
-                                    }
-                                    .stroke(Color.red, lineWidth: 3)
+                                            // Panjang badan panah
+                                            let arrowLength: CGFloat = min(arrowInfo.distance * 0.7, 70)
+                                            
+                                            // Titik akhir badan panah
+                                            let endPoint = CGPoint(
+                                                x: currentPointInView.x + cos(arrowInfo.angle) * arrowLength,
+                                                y: currentPointInView.y + sin(arrowInfo.angle) * arrowLength
+                                            )
+                                            
+                                            // Gambar badan panah
+                                            path.move(to: currentPointInView)
+                                            path.addLine(to: endPoint)
+                                            
+                                            // --- LOGIKA KEPALA PANAH BARU ---
+                                            // Mengadopsi gaya dari contoh Anda
+                                            let arrowHeadLength: CGFloat = 20
+                                            let arrowHeadAngle: CGFloat = .pi / 4 // 45 derajat untuk "V" yang lebar
+
+                                            // Hitung titik untuk sayap kiri kepala panah
+                                            let head1 = CGPoint(
+                                                x: endPoint.x - arrowHeadLength * cos(arrowInfo.angle - arrowHeadAngle),
+                                                y: endPoint.y - arrowHeadLength * sin(arrowInfo.angle - arrowHeadAngle)
+                                            )
+                                            
+                                            // Hitung titik untuk sayap kanan kepala panah
+                                            let head2 = CGPoint(
+                                                x: endPoint.x - arrowHeadLength * cos(arrowInfo.angle + arrowHeadAngle),
+                                                y: endPoint.y - arrowHeadLength * sin(arrowInfo.angle + arrowHeadAngle)
+                                            )
+                                            
+                                            // Gambar kepala panah "V"
+                                            path.move(to: head1)
+                                            path.addLine(to: endPoint)
+                                            path.addLine(to: head2)
+                                        }
+                                        .stroke(Color.yellow, style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .miter))
+                                        .shadow(color: .black.opacity(1), radius: 3, y: 2)
                                 }
                             }
                         }
