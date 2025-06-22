@@ -1,10 +1,9 @@
-
 import SwiftUI
 import AVFoundation
 import Vision
+import Combine
 
-@Observable
-class CameraViewModel {
+class CameraViewModel: ObservableObject {
 
     // 1.
     let session = AVCaptureSession()

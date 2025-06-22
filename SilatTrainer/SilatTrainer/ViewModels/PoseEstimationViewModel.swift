@@ -8,7 +8,7 @@
 import SwiftUI
 import Vision
 import AVFoundation
-import Observation
+import Combine
 
 // 1.
 struct BodyConnection: Identifiable {
@@ -17,12 +17,11 @@ struct BodyConnection: Identifiable {
     let to: HumanBodyPoseObservation.JointName
 }
 
-@Observable
-class PoseEstimationViewModel: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
+class PoseEstimationViewModel: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, ObservableObject {
 
     // 2.
-    var detectedBodyParts: [HumanBodyPoseObservation.JointName: CGPoint] = [:]
-    var bodyConnections: [BodyConnection] = []
+    @Published var detectedBodyParts: [HumanBodyPoseObservation.JointName: CGPoint] = [:]
+    @Published var bodyConnections: [BodyConnection] = []
     
     override init() {
         super.init()
