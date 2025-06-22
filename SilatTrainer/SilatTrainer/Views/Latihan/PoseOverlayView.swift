@@ -19,6 +19,8 @@ struct PoseOverlayView: View {
     let connections: [BodyConnection]
     let targetPose: PoseData?
     let showGuideArrows: Bool
+    let showFittingBox: Bool
+    let fittingBoxRect = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)
     
     // Convert joint key to HumanBodyPoseObservation.JointName
     private func keyToJointName(_ key: String) -> HumanBodyPoseObservation.JointName? {
@@ -283,6 +285,23 @@ struct PoseOverlayView: View {
             
             // 2. Membuat lapisan ZStack untuk menggambar sendi dan koneksi
             ZStack {
+                
+                if showFittingBox {
+                    let boxRect = CGRect(
+                        x: fittingBoxRect.origin.x * geometry.size.width,
+                        y: fittingBoxRect.origin.y * geometry.size.height,
+                        width: fittingBoxRect.width * geometry.size.width,
+                        height: fittingBoxRect.height * geometry.size.height
+                    )
+                    
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(style: StrokeStyle(lineWidth: 4, dash: [10]))
+                        .foregroundColor(.white.opacity(0.8))
+                        .shadow(color: .black.opacity(0.7), radius: 5)
+                        .frame(width: boxRect.width, height: boxRect.height)
+                        .position(x: boxRect.midX, y: boxRect.midY)
+                }
+                
                 // Calculate user body dimensions for adaptive transformations
                 let userBodyDimensions = calculateBodyDimensions()
                 
