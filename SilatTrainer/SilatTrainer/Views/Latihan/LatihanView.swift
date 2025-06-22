@@ -30,105 +30,129 @@ struct LatihanView: View {
                 bodyParts: poseViewModel.detectedBodyParts,
                 connections: poseViewModel.bodyConnections,
                 targetPose: latihanVM.currentTargetPose,
-                showGuideArrows: latihanVM.isAtOptimalDistance && !latihanVM.isPoseMatched && !latihanVM.showPoseTransition
+                showGuideArrows: latihanVM.isAtOptimalDistance && !latihanVM.isPoseMatched && !latihanVM.showPoseTransition,
+                showFittingBox: latihanVM.phase != .evaluating
             )
             
             VStack {
-                HStack {
-                    Button(action: {
-                        showTutorial = true
-                    }) {
-                        Image(systemName: "info.circle")
-                            .padding(.leading, 37)
+                if latihanVM.phase == .evaluating {
+                    HStack {
+                        Button(action: {
+                            showTutorial = true
+                        }) {
+                            Image(systemName: "info.circle")
+                                .padding(.leading, 37)
+                        }
+                        .fullScreenCover(isPresented: $showTutorial) {
+                            TutorialView(navigate: navigate)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            close()
+                        }) {
+                            Image(systemName: "x.circle")
+                                .padding(.trailing, 37)
+                        }
+                        
                     }
-                    .fullScreenCover(isPresented: $showTutorial) {
-                        TutorialView(navigate: navigate)
-                    }
+                    .font(.system(size: 32.25, weight: .medium))
+                    .foregroundStyle(.black)
+                    
+                    Text("Jurus 1")
+                        .font(.system(size: 32, weight: .bold))
+                    
+                    Text("\(latihanVM.poseName)")
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 30)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.white.opacity(0.5))
+                        )
+                        .overlay(
+                           RoundedRectangle(cornerRadius: 10)
+                              .stroke(Color.black, lineWidth:1)
+                        )
                     
                     Spacer()
                     
-                    Button(action: {
-                        close()
-                    }) {
-                        Image(systemName: "x.circle")
-                            .padding(.trailing, 37)
-                    }
-                    
-                }
-                .font(.system(size: 32.25, weight: .medium))
-                .foregroundStyle(.black)
-                
-                Text("Jurus 1")
-                    .font(.system(size: 32, weight: .bold))
-                
-                Text("\(latihanVM.poseName)")
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 30)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.5))
-                    )
-                    .overlay(
-                       RoundedRectangle(cornerRadius: 10)
-                          .stroke(Color.black, lineWidth:1)
-                    )
-                
-                Spacer()
-                
-                VStack(spacing: 10) {
-                    HStack {
-                        Image(systemName: latihanVM.isAtOptimalDistance ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                            .foregroundColor(latihanVM.isAtOptimalDistance ? .green : .orange)
-                        Text(latihanVM.isAtOptimalDistance ? "Posisi Optimal" : "Sesuaikan Jarak")
-                            .foregroundColor(latihanVM.isAtOptimalDistance ? .green : .orange)
-                    }
-                    .font(.system(size: 18, weight: .medium))
-                    
-                    if latihanVM.isAtOptimalDistance && !latihanVM.showPoseTransition {
+                    VStack(spacing: 10) {
                         HStack {
-                            Image(systemName: latihanVM.isPoseMatched ? "checkmark.circle.fill" : "target")
-                                .foregroundColor(latihanVM.isPoseMatched ? .green : .blue)
-                            Text(latihanVM.isPoseMatched ? "Pose Cocok - Tahan!" : "Sesuaikan Pose")
-                                .foregroundColor(latihanVM.isPoseMatched ? .green : .blue)
+                            Image(systemName: latihanVM.isAtOptimalDistance ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                .foregroundColor(latihanVM.isAtOptimalDistance ? .green : .orange)
+                            Text(latihanVM.isAtOptimalDistance ? "Posisi Optimal" : "Sesuaikan Jarak")
+                                .foregroundColor(latihanVM.isAtOptimalDistance ? .green : .orange)
                         }
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 18, weight: .medium))
                         
-                        if latihanVM.isPoseMatched {
-                            VStack(spacing: 8) {
-                                Text("\(latihanVM.countdownValue)")
-                                    .font(.system(size: 48, weight: .bold))
-                                    .foregroundColor(.green)
-                                
-                                ProgressView(value: latihanVM.holdProgress)
-                                    .progressViewStyle(LinearProgressViewStyle(tint: .green))
-                                    .frame(width: 200)
+                        if latihanVM.isAtOptimalDistance && !latihanVM.showPoseTransition {
+                            HStack {
+                                Image(systemName: latihanVM.isPoseMatched ? "checkmark.circle.fill" : "target")
+                                    .foregroundColor(latihanVM.isPoseMatched ? .green : .blue)
+                                Text(latihanVM.isPoseMatched ? "Pose Cocok - Tahan!" : "Sesuaikan Pose")
+                                    .foregroundColor(latihanVM.isPoseMatched ? .green : .blue)
+                            }
+                            .font(.system(size: 16, weight: .medium))
+                            
+                            if latihanVM.isPoseMatched {
+                                VStack(spacing: 8) {
+                                    Text("\(latihanVM.countdownValue)")
+                                        .font(.system(size: 48, weight: .bold))
+                                        .foregroundColor(.green)
+                                    
+                                    ProgressView(value: latihanVM.holdProgress)
+                                        .progressViewStyle(LinearProgressViewStyle(tint: .green))
+                                        .frame(width: 200)
+                                }
                             }
                         }
                     }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.white.opacity(0.8))
-                )
-                
-//                Text("Sesuaikan Posisi Anda di dalam Kotak")
-//                    .font(.system(size: 18, weight: .medium))
-//                    .multilineTextAlignment(.center)
-//                    .foregroundStyle(.black)
-//                    .frame(maxWidth: .infinity)
-//                    .padding(.bottom, 50)
-//                    .padding(.horizontal, 48)
-                
-                Button(action: {
-                    navigate(.finish)
-                }) {
-                    Text(latihanVM.showCompletionMessage ? "Selesai" : "Lewati")
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.white.opacity(0.8))
+                    )
+                    
+                    Button(action: {
+                        navigate(.finish)
+                    }) {
+                        Text(latihanVM.showCompletionMessage ? "Selesai" : "Lewati")
+                    }
+                } else {
+                    Spacer()
+                    if latihanVM.phase == .positioning {
+                        Text("Posisikan Diri Anda")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .shadow(radius: 3)
+                        
+                        Text(latihanVM.isUserPositioned ? "Bagus! Tahan Posisi" : "Pastikan seluruh tubuh berada di dalam kotak")
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .foregroundColor(latihanVM.isUserPositioned ? .green : .yellow)
+                            .padding(.horizontal)
+                            .multilineTextAlignment(.center)
+                            .shadow(radius: 3)
+                    }
+                    
+                    if latihanVM.phase == .countdown {
+                        Text("\(latihanVM.positioningCountdownValue)")
+                            .font(.system(size: 120, weight: .bold))
+                            .foregroundColor(.white)
+                            .shadow(radius: 5)
+                            .transition(.opacity.combined(with: .scale))
+                    }
+                    Spacer()
+                    Spacer()
                 }
             }
+            .padding(.vertical, 30)
+            .animation(.easeInOut, value: latihanVM.phase)
             .opacity(latihanVM.showPoseTransition ? 0 : 1)
             .animation(.easeInOut(duration: 0.3), value: latihanVM.showPoseTransition)
             
@@ -155,7 +179,7 @@ struct LatihanView: View {
             cameraVM.delegate = poseViewModel
         }
         .onChange(of: poseViewModel.detectedBodyParts) { _, _ in
-            latihanVM.updatePose()
+            latihanVM.update()
         }
     }
 }

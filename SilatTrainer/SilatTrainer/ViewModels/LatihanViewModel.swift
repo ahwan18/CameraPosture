@@ -2,6 +2,12 @@ import Foundation
 import SwiftUI
 import Vision
 
+enum LatihanPhase {
+    case positioning
+    case countdown
+    case evaluating
+}
+
 class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     // MARK: - Published Properties (for UI)
     @Published var currentPoseIndex: Int = 0
@@ -12,6 +18,11 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     @Published var showPoseTransition: Bool = false
     @Published var isAtOptimalDistance: Bool = true
     @Published var poseName: String = "A1"
+    
+    // Positioning and countdown properties
+    @Published var phase: LatihanPhase = .positioning
+    @Published var positioningCountdownValue: Int = 3
+    @Published var isUserPositioned: Bool = false
     
     // MARK: - ViewModels and Managers
     private var poseViewModel: PoseEstimationViewModel
@@ -24,6 +35,8 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private var wasAtOptimalDistance: Bool = true
     private var lastCorrectionTime: Date = .distantPast
     private let correctionGracePeriod: TimeInterval = 2.0
+    private var countdownTimer: Timer?
+    private let fittingBox = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)
     
     // MARK: - Computed Properties
     var currentTargetPose: PoseData? {
@@ -54,10 +67,29 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     
     func cleanup() {
         poseTimerManager.stopTimer()
+        countdownTimer?.invalidate()
+        countdownTimer = nil
     }
     
     // MARK: - Main Logic
-    func updatePose() {
+    func update() {
+        self.isUserPositioned = checkUserPosition()
+
+        switch phase {
+        case .positioning:
+            if isUserPositioned {
+                startPositioningCountdown()
+            }
+        case .countdown:
+            if !isUserPositioned {
+                resetToPositioningPhase()
+            }
+        case .evaluating:
+            evaluatePose()
+        }
+    }
+
+    private func evaluatePose() {
         self.isAtOptimalDistance = checkOptimalDistance()
         
         if isAtOptimalDistance != wasAtOptimalDistance {
@@ -135,6 +167,54 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     }
     
     // MARK: - Private Helpers
+    
+    private func checkUserPosition() -> Bool {
+        let allJointsVisible = checkOptimalDistance()
+        
+        if poseViewModel.detectedBodyParts.isEmpty {
+            return false
+        }
+        
+        for point in poseViewModel.detectedBodyParts.values {
+            if !fittingBox.contains(point) {
+                return false
+            }
+        }
+        
+        return allJointsVisible
+    }
+    
+    private func startPositioningCountdown() {
+        phase = .countdown
+        positioningCountdownValue = 3
+        
+        countdownTimer?.invalidate()
+        
+        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            self.positioningCountdownValue -= 1
+            
+            if self.positioningCountdownValue > 0 {
+                self.voiceFeedbackManager.speak("\(self.positioningCountdownValue)", interrupt: true)
+            }
+            
+            if self.positioningCountdownValue <= 0 {
+                self.countdownTimer?.invalidate()
+                self.phase = .evaluating
+                self.voiceFeedbackManager.speak("Mulai!", interrupt: true)
+            }
+        }
+    }
+    
+    private func resetToPositioningPhase() {
+        countdownTimer?.invalidate()
+        countdownTimer = nil
+        phase = .positioning
+        positioningCountdownValue = 3
+        voiceFeedbackManager.speak("Posisi salah, kembali ke dalam kotak", interrupt: true)
+    }
+    
     private func checkOptimalDistance() -> Bool {
         let requiredJoints: [HumanBodyPoseObservation.JointName] = [
             .nose, .neck, .leftShoulder, .rightShoulder, .leftElbow, .rightElbow,
