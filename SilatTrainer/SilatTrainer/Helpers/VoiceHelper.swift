@@ -15,11 +15,11 @@
 import Foundation
 import AVFoundation
 
-class VoiceHelper {
+class VoiceHelper: VoiceFeedbackProtocol {
     static let shared = VoiceHelper()
     private let synthesizer = AVSpeechSynthesizer()
     private var lastSpokenTime: Date?
-    private let minimumTimeBetweenSpeeches: TimeInterval = 0.5 // Minimum 2 seconds between speeches
+    private let minimumTimeBetweenSpeeches: TimeInterval = 0.5 // Minimum 0.5 seconds between speeches
     
     private init() {}
     
@@ -42,5 +42,72 @@ class VoiceHelper {
         lastSpokenTime = Date()
         
         print("Speaking: \(text)")
+    }
+    
+    func provideFeedback(similarity: Double, for poseName: String) {
+        let feedbackMessage: String
+        
+        if similarity > 0.9 {
+            feedbackMessage = "Sangat bagus! Pose \(poseName) sempurna."
+        } else if similarity > 0.7 {
+            feedbackMessage = "Bagus! Pose \(poseName) hampir sempurna."
+        } else if similarity > 0.5 {
+            feedbackMessage = "Pose \(poseName) cukup baik, terus perbaiki."
+        } else {
+            feedbackMessage = "Coba sesuaikan pose \(poseName) Anda."
+        }
+        
+        speak(feedbackMessage)
+    }
+    
+    func provideJointCorrection(for joints: [String], in poseName: String) {
+        if joints.isEmpty {
+            speak("Posisi tubuh sudah tepat untuk pose \(poseName).")
+            return
+        }
+        
+        // Map joint names to Indonesian terms
+        let jointTranslations: [String: String] = [
+            "nose": "hidung",
+            "neck": "leher",
+            "rightShoulder": "bahu kanan",
+            "leftShoulder": "bahu kiri",
+            "rightElbow": "siku kanan",
+            "leftElbow": "siku kiri",
+            "rightWrist": "pergelangan tangan kanan",
+            "leftWrist": "pergelangan tangan kiri",
+            "rightHip": "pinggul kanan",
+            "leftHip": "pinggul kiri",
+            "rightKnee": "lutut kanan",
+            "leftKnee": "lutut kiri",
+            "rightAnkle": "pergelangan kaki kanan",
+            "leftAnkle": "pergelangan kaki kiri"
+        ]
+        
+        // Limit to maximum 3 joints to avoid too much feedback
+        let limitedJoints = joints.prefix(3)
+        let jointNames = limitedJoints.compactMap { jointTranslations[$0] }
+        
+        if jointNames.isEmpty {
+            return
+        }
+        
+        let jointsText = jointNames.joined(separator: ", ")
+        speak("Sesuaikan posisi \(jointsText) Anda untuk pose \(poseName).")
+    }
+    
+    func announceTrainingEvent(_ event: String) {
+        switch event {
+        case "start":
+            speak("Latihan dimulai. Bersiaplah.")
+        case "complete":
+            speak("Pose berhasil. Bagus sekali!")
+        case "rest":
+            speak("Istirahat sejenak. Bersiaplah untuk pose berikutnya.")
+        case "end":
+            speak("Latihan selesai. Terima kasih atas usaha Anda.")
+        default:
+            speak(event)
+        }
     }
 }
