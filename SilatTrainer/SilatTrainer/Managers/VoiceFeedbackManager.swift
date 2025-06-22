@@ -3,78 +3,44 @@ import AVFoundation
 import Vision
 import CoreGraphics
 
-class VoiceFeedbackManager: NSObject, AVSpeechSynthesizerDelegate {
-    private let synthesizer = AVSpeechSynthesizer()
-    private var onComplete: (() -> Void)?
-    private(set) var isProcessingVoice: Bool = false
+class VoiceFeedbackManager {
     private var lastCorrectionTime: Date = Date.distantPast
-    
     private let voiceInstructionInterval: TimeInterval = 4.0
     private weak var poseViewModel: PoseEstimationViewModel?
     private let poseData: [PoseData]
     
     init(poseViewModel: PoseEstimationViewModel, poseData: [PoseData]) {
-        self.poseViewModel = poseViewModel
-        self.poseData = poseData
-        super.init()
-        self.synthesizer.delegate = self
-    }
-
-    // MARK: - Delegate
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        DispatchQueue.main.async {
-            self.isProcessingVoice = false
-            self.onComplete?()
-            self.onComplete = nil
+            self.poseViewModel = poseViewModel
+            self.poseData = poseData
         }
-    }
     
-    // MARK: - Public Speak Method (satu-satunya yang perlu completion)
-    public func speak(_ text: String, interrupt: Bool, completion: (() -> Void)? = nil) {
-        if synthesizer.isSpeaking {
-            if interrupt {
-                synthesizer.stopSpeaking(at: .immediate)
-            } else {
-                completion?() // Jika tidak boleh menginterupsi, langsung jalankan completion.
-                return
-            }
+    func speak(_ text: String, interrupt: Bool, completion: (() -> Void)? = nil) {
+            VoiceHelper.shared.speak(text, interrupt: interrupt, completion: completion)
         }
-        
-        self.onComplete = completion
-        isProcessingVoice = true
-        
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "id-ID")
-        utterance.rate = 0.5
-        utterance.pitchMultiplier = 1.0
-        utterance.volume = 1.0
-        
-        synthesizer.speak(utterance)
-    }
 
     // MARK: - Simple Announcers (tanpa completion)
     func announceDistance(isOptimal: Bool, wasOptimal: Bool) {
-        if !isProcessingVoice, !isOptimal, wasOptimal {
-            speak("Pastikan seluruh tubuh terlihat", interrupt: false)
+        if !VoiceHelper.shared.isProcessingVoice, !isOptimal, wasOptimal {
+            VoiceHelper.shared.speak("Pastikan seluruh tubuh terlihat", interrupt: false)
         }
     }
     
     func announcePoseMatch() {
-        speak("Pose benar, tahan posisi", interrupt: true)
+        VoiceHelper.shared.speak("Pose benar, tahan posisi", interrupt: true)
     }
     
     func announceHoldCountdown(second: Int) {
-        speak("\(second)", interrupt: false)
+        VoiceHelper.shared.speak("\(second)", interrupt: false)
     }
     
     func announcePoseFailure() {
-        speak("Pose salah, ulangi lagi", interrupt: true)
+        VoiceHelper.shared.speak("Pose salah, ulangi lagi", interrupt: true)
         lastCorrectionTime = Date()
     }
     
     func announcePoseCompletion(isLastPose: Bool) {
         let text = isLastPose ? "Selamat!" : "Bagus! Lanjut ke gerakan berikutnya"
-        speak(text, interrupt: true)
+        VoiceHelper.shared.speak(text, interrupt: true)
     }
     
     func giveJointCorrection(isPoseMatched: Bool, currentTargetPose: PoseData) {
@@ -103,7 +69,7 @@ class VoiceFeedbackManager: NSObject, AVSpeechSynthesizerDelegate {
                     instruction += " kurang turun"
                 }
                 if instruction != jointNameToIndonesian(joint) {
-                    speak(instruction, interrupt: true)
+                    VoiceHelper.shared.speak(instruction, interrupt: true)
                     lastCorrectionTime = Date()
                 }
             }

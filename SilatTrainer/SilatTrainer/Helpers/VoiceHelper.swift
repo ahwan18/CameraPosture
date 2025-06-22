@@ -1,46 +1,61 @@
-//
-//  VoiceOutput.swift
-//  SilatTrainer
-//
-//  Created by Agung Kurniawan on 15/06/25.
-//
-
-//
-//  VoiceHelper.swift
-//  SilatTrainer
-//
-//  Created by Agung Kurniawan on 15/06/25.
-//
-
+// VoiceHelper.swift - Versi yang diperbaiki
 import Foundation
 import AVFoundation
 
-class VoiceHelper {
+class VoiceHelper: NSObject, AVSpeechSynthesizerDelegate {
     static let shared = VoiceHelper()
     private let synthesizer = AVSpeechSynthesizer()
+    private var onComplete: (() -> Void)?
+    private(set) var isProcessingVoice: Bool = false
     private var lastSpokenTime: Date?
-    private let minimumTimeBetweenSpeeches: TimeInterval = 0.5 // Minimum 2 seconds between speeches
+    private let minimumTimeBetweenSpeeches: TimeInterval = 0.5
     
-    private init() {}
+    private override init() {
+        super.init()
+        self.synthesizer.delegate = self
+    }
     
-    func speak(_ text: String) {
-        // Check if enough time has passed since last speech
-        if let lastTime = lastSpokenTime,
+    // MARK: - Delegate
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async {
+            self.isProcessingVoice = false
+            self.onComplete?()
+            self.onComplete = nil
+        }
+    }
+    
+    // MARK: - Public Methods
+    func speak(_ text: String, interrupt: Bool = false, completion: (() -> Void)? = nil) {
+        // Check if enough time has passed since last speech (if not interrupting)
+        if !interrupt, let lastTime = lastSpokenTime,
            Date().timeIntervalSince(lastTime) < minimumTimeBetweenSpeeches {
+            completion?()
             return
         }
         
-        // Create utterance
+        // Stop current speech if interrupting
+        if synthesizer.isSpeaking {
+            if interrupt {
+                synthesizer.stopSpeaking(at: .immediate)
+            } else {
+                completion?()
+                return
+            }
+        }
+        
+        self.onComplete = completion
+        isProcessingVoice = true
+        
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "id-ID") // Indonesian voice
-        utterance.rate = 0.5 // Slower rate for better clarity
+        utterance.voice = AVSpeechSynthesisVoice(language: "id-ID")
+        utterance.rate = 0.5
         utterance.pitchMultiplier = 1.0
         utterance.volume = 1.0
         
-        // Speak
         synthesizer.speak(utterance)
         lastSpokenTime = Date()
         
         print("Speaking: \(text)")
     }
+    
 }
