@@ -19,7 +19,7 @@ class TrainingSessionManager: TrainingSessionProtocol {
     private let voiceService: VoiceFeedbackProtocol
     
     init(poseService: PoseServiceProtocol = PoseLoader.shared, 
-         voiceService: VoiceFeedbackProtocol = VoiceHelper.shared) {
+         voiceService: VoiceFeedbackProtocol = VoiceHelper.shared as! VoiceFeedbackProtocol) {
         self.poseService = poseService
         self.voiceService = voiceService
     }
