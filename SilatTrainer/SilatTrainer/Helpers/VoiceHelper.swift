@@ -1,113 +1,61 @@
-//
-//  VoiceOutput.swift
-//  SilatTrainer
-//
-//  Created by Agung Kurniawan on 15/06/25.
-//
-
-//
-//  VoiceHelper.swift
-//  SilatTrainer
-//
-//  Created by Agung Kurniawan on 15/06/25.
-//
-
+// VoiceHelper.swift - Versi yang diperbaiki
 import Foundation
 import AVFoundation
 
-class VoiceHelper: VoiceFeedbackProtocol {
+class VoiceHelper: NSObject, AVSpeechSynthesizerDelegate {
     static let shared = VoiceHelper()
     private let synthesizer = AVSpeechSynthesizer()
+    private var onComplete: (() -> Void)?
+    private(set) var isProcessingVoice: Bool = false
     private var lastSpokenTime: Date?
-    private let minimumTimeBetweenSpeeches: TimeInterval = 0.5 // Minimum 0.5 seconds between speeches
+    private let minimumTimeBetweenSpeeches: TimeInterval = 0.5
     
-    private init() {}
+    private override init() {
+        super.init()
+        self.synthesizer.delegate = self
+    }
     
-    func speak(_ text: String) {
-        // Check if enough time has passed since last speech
-        if let lastTime = lastSpokenTime,
+    // MARK: - Delegate
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async {
+            self.isProcessingVoice = false
+            self.onComplete?()
+            self.onComplete = nil
+        }
+    }
+    
+    // MARK: - Public Methods
+    func speak(_ text: String, interrupt: Bool = false, completion: (() -> Void)? = nil) {
+        // Check if enough time has passed since last speech (if not interrupting)
+        if !interrupt, let lastTime = lastSpokenTime,
            Date().timeIntervalSince(lastTime) < minimumTimeBetweenSpeeches {
+            completion?()
             return
         }
         
-        // Create utterance
+        // Stop current speech if interrupting
+        if synthesizer.isSpeaking {
+            if interrupt {
+                synthesizer.stopSpeaking(at: .immediate)
+            } else {
+                completion?()
+                return
+            }
+        }
+        
+        self.onComplete = completion
+        isProcessingVoice = true
+        
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "id-ID") // Indonesian voice
-        utterance.rate = 0.5 // Slower rate for better clarity
+        utterance.voice = AVSpeechSynthesisVoice(language: "id-ID")
+        utterance.rate = 0.5
         utterance.pitchMultiplier = 1.0
         utterance.volume = 1.0
         
-        // Speak
         synthesizer.speak(utterance)
         lastSpokenTime = Date()
         
         print("Speaking: \(text)")
     }
     
-    func provideFeedback(similarity: Double, for poseName: String) {
-        let feedbackMessage: String
-        
-        if similarity > 0.9 {
-            feedbackMessage = "Sangat bagus! Pose \(poseName) sempurna."
-        } else if similarity > 0.7 {
-            feedbackMessage = "Bagus! Pose \(poseName) hampir sempurna."
-        } else if similarity > 0.5 {
-            feedbackMessage = "Pose \(poseName) cukup baik, terus perbaiki."
-        } else {
-            feedbackMessage = "Coba sesuaikan pose \(poseName) Anda."
-        }
-        
-        speak(feedbackMessage)
-    }
-    
-    func provideJointCorrection(for joints: [String], in poseName: String) {
-        if joints.isEmpty {
-            speak("Posisi tubuh sudah tepat untuk pose \(poseName).")
-            return
-        }
-        
-        // Map joint names to Indonesian terms
-        let jointTranslations: [String: String] = [
-            "nose": "hidung",
-            "neck": "leher",
-            "rightShoulder": "bahu kanan",
-            "leftShoulder": "bahu kiri",
-            "rightElbow": "siku kanan",
-            "leftElbow": "siku kiri",
-            "rightWrist": "pergelangan tangan kanan",
-            "leftWrist": "pergelangan tangan kiri",
-            "rightHip": "pinggul kanan",
-            "leftHip": "pinggul kiri",
-            "rightKnee": "lutut kanan",
-            "leftKnee": "lutut kiri",
-            "rightAnkle": "pergelangan kaki kanan",
-            "leftAnkle": "pergelangan kaki kiri"
-        ]
-        
-        // Limit to maximum 3 joints to avoid too much feedback
-        let limitedJoints = joints.prefix(3)
-        let jointNames = limitedJoints.compactMap { jointTranslations[$0] }
-        
-        if jointNames.isEmpty {
-            return
-        }
-        
-        let jointsText = jointNames.joined(separator: ", ")
-        speak("Sesuaikan posisi \(jointsText) Anda untuk pose \(poseName).")
-    }
-    
-    func announceTrainingEvent(_ event: String) {
-        switch event {
-        case "start":
-            speak("Latihan dimulai. Bersiaplah.")
-        case "complete":
-            speak("Pose berhasil. Bagus sekali!")
-        case "rest":
-            speak("Istirahat sejenak. Bersiaplah untuk pose berikutnya.")
-        case "end":
-            speak("Latihan selesai. Terima kasih atas usaha Anda.")
-        default:
-            speak(event)
-        }
-    }
 }
