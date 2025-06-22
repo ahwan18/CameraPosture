@@ -67,10 +67,7 @@
 			</array>
 		</dict>
 	</dict>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>background-processing</string>
-	</array>
+
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
