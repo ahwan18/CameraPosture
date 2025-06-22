@@ -2,7 +2,7 @@ import Foundation
 import CoreGraphics
 import Vision
 
-class PoseMatcher {
+class PoseMatcher: PoseMatcherProtocol {
     private let poseData: [PoseData]
     private weak var poseViewModel: PoseEstimationViewModel?
     

@@ -3,7 +3,7 @@ import AVFoundation
 import Vision
 import CoreGraphics
 
-class VoiceFeedbackManager {
+class VoiceFeedbackManager: VoiceFeedbackProtocol {
     private var lastCorrectionTime: Date = Date.distantPast
     private let voiceInstructionInterval: TimeInterval = 4.0
     private weak var poseViewModel: PoseEstimationViewModel?
@@ -41,6 +41,44 @@ class VoiceFeedbackManager {
     func announcePoseCompletion(isLastPose: Bool) {
         let text = isLastPose ? "Selamat!" : "Bagus! Lanjut ke gerakan berikutnya"
         VoiceHelper.shared.speak(text, interrupt: true)
+    }
+    
+    func announceTrainingEvent(_ event: String) {
+        switch event {
+        case "start":
+            speak("Latihan dimulai", interrupt: true)
+        case "end":
+            speak("Latihan selesai", interrupt: true)
+        case "rest":
+            speak("Istirahat sejenak, bersiap untuk gerakan berikutnya", interrupt: true)
+        default:
+            speak(event, interrupt: true)
+        }
+    }
+    
+    func provideFeedback(similarity: Double, for poseName: String) {
+        if similarity > 0.85 {
+            speak("Gerakan bagus", interrupt: false)
+        } else if similarity > 0.7 {
+            speak("Gerakan cukup baik, pertahankan", interrupt: false)
+        } else {
+            speak("Coba sesuaikan posisi tubuh", interrupt: false)
+        }
+    }
+    
+    func provideJointCorrection(for joints: [String], in poseName: String) {
+        guard !joints.isEmpty else { return }
+        
+        if joints.count == 1 {
+            speak("Sesuaikan posisi \(humanReadableJointName(joints[0]))", interrupt: true)
+        } else if joints.count <= 3 {
+            let jointNames = joints.map { humanReadableJointName($0) }.joined(separator: ", ")
+            speak("Sesuaikan \(jointNames)", interrupt: true)
+        } else {
+            speak("Coba sesuaikan posisi tubuh secara keseluruhan", interrupt: true)
+        }
+        
+        lastCorrectionTime = Date()
     }
     
     func giveJointCorrection(isPoseMatched: Bool, currentTargetPose: PoseData) {
@@ -82,21 +120,42 @@ class VoiceFeedbackManager {
 
     private func jointNameToIndonesian(_ jointName: HumanBodyPoseObservation.JointName) -> String {
         switch jointName {
-        case .nose: "hidung"
-        case .neck: "leher"
-        case .leftShoulder: "bahu kanan"
-        case .rightShoulder: "bahu kiri"
-        case .leftElbow: "siku kanan"
-        case .rightElbow: "siku kiri"
-        case .leftWrist: "pergelangan tangan kanan"
-        case .rightWrist: "pergelangan tangan kiri"
-        case .leftHip: "pinggul kanan"
-        case .rightHip: "pinggul kiri"
-        case .leftKnee: "lutut kanan"
-        case .rightKnee: "lutut kiri"
-        case .leftAnkle: "pergelangan kaki kanan"
-        case .rightAnkle: "pergelangan kaki kiri"
-        default: ""
+        case .nose: return "hidung"
+        case .neck: return "leher"
+        case .leftShoulder: return "bahu kanan"
+        case .rightShoulder: return "bahu kiri"
+        case .leftElbow: return "siku kanan"
+        case .rightElbow: return "siku kiri"
+        case .leftWrist: return "pergelangan tangan kanan"
+        case .rightWrist: return "pergelangan tangan kiri"
+        case .leftHip: return "pinggul kanan"
+        case .rightHip: return "pinggul kiri"
+        case .leftKnee: return "lutut kanan"
+        case .rightKnee: return "lutut kiri"
+        case .leftAnkle: return "pergelangan kaki kanan"
+        case .rightAnkle: return "pergelangan kaki kiri"
+        default: return ""
+        }
+    }
+    
+    private func humanReadableJointName(_ jointString: String) -> String {
+        // Convert technical joint names to user-friendly Indonesian names
+        switch jointString.lowercased() {
+        case "nose": return "hidung"
+        case "neck": return "leher"
+        case "leftshoulder": return "bahu kanan"
+        case "rightshoulder": return "bahu kiri"
+        case "leftelbow": return "siku kanan"
+        case "rightelbow": return "siku kiri"
+        case "leftwrist": return "pergelangan tangan kanan"
+        case "rightwrist": return "pergelangan tangan kiri"
+        case "lefthip": return "pinggul kanan"
+        case "righthip": return "pinggul kiri"
+        case "leftknee": return "lutut kanan"
+        case "rightknee": return "lutut kiri"
+        case "leftankle": return "pergelangan kaki kanan"
+        case "rightankle": return "pergelangan kaki kiri"
+        default: return jointString
         }
     }
 }
