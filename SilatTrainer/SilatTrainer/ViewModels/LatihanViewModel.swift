@@ -32,6 +32,9 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private var poseMatcher: PoseMatcher                // Matches detected pose with target pose
     private var voiceFeedbackManager: VoiceFeedbackManager  // Provides voice guidance
     public var poseTimerManager: PoseTimerManager       // Manages pose holding time
+    
+    // Navigation callback for auto-navigation to finish view
+    var navigateToFinish: (() -> Void)?
 
     //  - Properties
     let poseData: [PoseData]                           // Collection of target poses
@@ -40,6 +43,12 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private let correctionGracePeriod: TimeInterval = 2.0  // Seconds to wait before giving another correction
     private var countdownTimer: Timer?                  // Timer for positioning countdown
     private let fittingBox = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)  // Area where user should position
+    
+    // Tambahkan property untuk tracking status pose sebelumnya
+    private var lastPoseValidStatus: Bool = false
+    
+    // Flag untuk mengontrol navigasi FinishView agar hanya terjadi sekali
+    private var hasNavigatedToFinish: Bool = false
     
     //  - Computed Properties
     
@@ -63,6 +72,11 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     init(poseViewModel: PoseEstimationViewModel) {
         self.poseViewModel = poseViewModel
         self.poseData = PoseLoader.loadPose()
+        
+        print("LatihanViewModel: Loaded \(poseData.count) poses")
+        for (index, pose) in poseData.enumerated() {
+            print("Pose \(index): ID \(pose.poseId)")
+        }
         
         self.poseMatcher = PoseMatcher(poseData: poseData, poseViewModel: poseViewModel)
         self.poseTimerManager = PoseTimerManager()
@@ -144,19 +158,48 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     func poseTimerDidComplete() {
         isPoseMatched = false
         
-        if currentPoseIndex < poseData.count - 1 {
+        print("Pose Timer Complete: currentPoseIndex = \(currentPoseIndex), total poses = \(poseData.count)")
+        
+        // Pose terakhir adalah currentPoseIndex == (poseData.count - 1)
+        let isLastPose = (currentPoseIndex >= poseData.count - 1)
+        print("Apakah ini pose terakhir? \(isLastPose)")
+        
+        if !isLastPose {
             showPoseTransition = true
             
             let completionText = "Bagus! Lanjut ke gerakan berikutnya"
             voiceFeedbackManager.speak(completionText, interrupt: true) {
                 // This closure will execute ONLY AFTER the "Bagus!..." voice has finished
                 self.currentPoseIndex += 1
+                print("Pindah ke pose berikutnya: \(self.currentPoseIndex)")
                 self.updatePoseName()
                 self.showPoseTransition = false
                 self.resetForNextPose()
             }
         } else {
+            // Sudah di pose terakhir, navigasi ke finish
+            print("SELESAI: Ini adalah pose terakhir (\(currentPoseIndex + 1) dari \(poseData.count))")
             showCompletionMessage = true
+            
+            // Pastikan timer berhenti
+            poseTimerManager.stopTimer()
+            
+            // Cek apakah sudah pernah navigasi ke FinishView
+            if !hasNavigatedToFinish {
+                print("Navigasi ke FinishView...")
+                
+                // Set flag untuk mencegah navigasi berulang
+                hasNavigatedToFinish = true
+                
+                // Jalankan navigasi sekali saja pada UI thread
+                DispatchQueue.main.async {
+                    self.navigateToFinish?()
+                }
+            } else {
+                print("Sudah pernah navigasi ke FinishView, abaikan")
+            }
+            
+            // Suara tetap dijalankan secara terpisah
             voiceFeedbackManager.speak("Selamat! Semua gerakan telah diselesaikan.", interrupt: true)
         }
     }
@@ -182,10 +225,24 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     /// Checks if the current pose is still valid for timing
     /// - Returns: Boolean indicating if the pose is still valid
     func isPoseStillValid() -> Bool {
+        // Jika sudah di pose terakhir, pastikan tetap valid untuk menyelesaikan timer
+        if currentPoseIndex >= poseData.count - 1 && holdProgress > 0.5 {
+            print("Di pose terakhir dengan progress > 50%, forcing pose tetap valid")
+            return true
+        }
+        
         let timeSinceCorrection = Date().timeIntervalSince(lastCorrectionTime)
         let isInGracePeriod = timeSinceCorrection < correctionGracePeriod
         
-        return isAtOptimalDistance && poseMatcher.checkPoseMatch(currentPoseIndex: currentPoseIndex) && !isInGracePeriod
+        let isValid = isAtOptimalDistance && poseMatcher.checkPoseMatch(currentPoseIndex: currentPoseIndex) && !isInGracePeriod
+        
+        // Hanya log jika status validasi berubah
+        if isValid != lastPoseValidStatus {
+            print("isPoseStillValid: \(isValid), poseIndex: \(currentPoseIndex), atOptimalDistance: \(isAtOptimalDistance)")
+            lastPoseValidStatus = isValid
+        }
+        
+        return isValid
     }
     
     //  - Private Helpers
