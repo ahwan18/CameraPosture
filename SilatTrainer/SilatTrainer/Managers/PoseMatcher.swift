@@ -124,7 +124,7 @@ class PoseMatcher: PoseMatcherProtocol {
                averageAngleDifference < 0.20
     }
     
-    // MARK: - Helper Functions
+    //  - Helper Functions
     
     private func distance(_ point1: CGPoint, _ point2: CGPoint) -> Double {
         let dx = point1.x - point2.x
