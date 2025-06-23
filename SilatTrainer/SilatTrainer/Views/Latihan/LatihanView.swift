@@ -30,7 +30,25 @@ struct LatihanView: View {
         _poseViewModel = StateObject(wrappedValue: poseVM)
         
         // Pass the pose view model to the training view model for coordination
-        _latihanVM = StateObject(wrappedValue: LatihanViewModel(poseViewModel: poseVM))
+        let latihanViewModel = LatihanViewModel(poseViewModel: poseVM)
+        
+        // Set up navigation callback to finish view - pastikan ini berjalan di main thread dan hanya sekali
+        latihanViewModel.navigateToFinish = {
+            print("LatihanView: navigateToFinish dipanggil, akan navigasi ke .finish")
+            
+            // Pastikan navigasi pada main thread
+            if Thread.isMainThread {
+                print("Sudah di main thread, navigasi langsung")
+                navigate(.finish)
+            } else {
+                print("Bukan di main thread, dispatch ke main")
+                DispatchQueue.main.async {
+                    navigate(.finish)
+                }
+            }
+        }
+        
+        _latihanVM = StateObject(wrappedValue: latihanViewModel)
     }
     
     var body: some View {
@@ -146,7 +164,15 @@ struct LatihanView: View {
                         navigate(.finish)
                     }) {
                         Text(latihanVM.showCompletionMessage ? "Selesai" : "Lewati")
+                            .padding(.horizontal, 40)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.white.opacity(0.8))
+                            )
+                            .foregroundColor(.black)
                     }
+                    .padding(.top, 10)
                 } else {
                     Spacer()
                     // Positioning phase UI - guides the user to position correctly in frame

@@ -15,7 +15,7 @@ class VoiceHelper: NSObject, AVSpeechSynthesizerDelegate {
         self.synthesizer.delegate = self
     }
     
-    // MARK: - Delegate
+    //  - Delegate
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         DispatchQueue.main.async {
             self.isProcessingVoice = false
@@ -24,7 +24,7 @@ class VoiceHelper: NSObject, AVSpeechSynthesizerDelegate {
         }
     }
     
-    // MARK: - Public Methods
+    //  - Public Methods
     func speak(_ text: String, interrupt: Bool = false, completion: (() -> Void)? = nil) {
         // Check if enough time has passed since last speech (if not interrupting)
         if !interrupt, let lastTime = lastSpokenTime,

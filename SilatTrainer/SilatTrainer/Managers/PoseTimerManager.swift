@@ -13,6 +13,9 @@ class PoseTimerManager {
     private var holdTimer: Timer?
     private var toleranceTimer: Timer?
     private var poseFailedTime: Date?
+    
+    // Flag untuk menandai apakah timer berhasil diselesaikan
+    private var timerCompleted: Bool = false
 
     private let holdDuration: Double = 8.0
     private let poseTolerance: TimeInterval = 0.15
@@ -21,8 +24,13 @@ class PoseTimerManager {
     private var elapsedTime: Double = 0.0
     
     func startTimer() {
-        guard holdTimer == nil else { return }
+        guard holdTimer == nil else { 
+            print("[PoseTimerManager] Timer sudah berjalan, tidak perlu memulai lagi")
+            return 
+        }
         
+        print("[PoseTimerManager] Memulai timer")
+        timerCompleted = false
         elapsedTime = 0.0
         poseFailedTime = nil
         
@@ -32,6 +40,7 @@ class PoseTimerManager {
     }
     
     func stopTimer() {
+        print("[PoseTimerManager] Menghentikan timer: completed=\(timerCompleted)")
         holdTimer?.invalidate()
         holdTimer = nil
         toleranceTimer?.invalidate()
@@ -42,6 +51,14 @@ class PoseTimerManager {
 
     private func tick() {
         guard let delegate = delegate else {
+            print("[PoseTimerManager] Delegate hilang, menghentikan timer")
+            stopTimer()
+            return
+        }
+        
+        // Jika timer sudah selesai, tidak perlu melakukan tick lagi
+        if timerCompleted {
+            print("[PoseTimerManager] Timer sudah selesai sebelumnya, menghentikan")
             stopTimer()
             return
         }
@@ -59,6 +76,8 @@ class PoseTimerManager {
             
             // Check for completion
             if elapsedTime >= holdDuration {
+                print("[PoseTimerManager] Timer selesai, elapsed time = \(elapsedTime)")
+                timerCompleted = true
                 stopTimer()
                 delegate.poseTimerDidComplete()
             }
@@ -70,6 +89,7 @@ class PoseTimerManager {
             } else {
                 // Failure already noticed, check if tolerance is exceeded
                 if Date().timeIntervalSince(poseFailedTime!) >= poseTolerance {
+                    print("[PoseTimerManager] Pose tidak valid melebihi toleransi")
                     stopTimer()
                     delegate.poseTimerDidFail()
                 }
