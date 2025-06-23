@@ -33,6 +33,7 @@ struct HomeView: View {
                     Spacer()
                     Button(action: {
                         // Action for info button
+                        navigate(.tutorial)
                     }) {
                         ZStack {
                             Circle()
@@ -77,7 +78,7 @@ struct HomeView: View {
                         .font(.title2)
                         .foregroundColor(.black)
                         .fontWeight(.medium)
-                        .padding(.vertical, 5)
+                        .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
                         .background(Color.white)
                         .cornerRadius(20)

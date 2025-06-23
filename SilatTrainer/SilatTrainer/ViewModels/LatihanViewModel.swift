@@ -22,6 +22,10 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     @Published var isAtOptimalDistance: Bool = true     // Whether user is at optimal distance for detection
     @Published var poseName: String = "A1"              // Current pose name for display
     
+    // - Session timer properties
+    @Published var sessionElapsedTime: String = "00:00"  // Formatted elapsed time for display
+    @Published var sessionDuration: TimeInterval = 0     // Total session duration in seconds
+    
     // - Positioning and countdown properties
     @Published var phase: LatihanPhase = .positioning   // Current phase of exercise
     @Published var positioningCountdownValue: Int = 3   // Countdown before starting pose evaluation
@@ -40,6 +44,10 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private let correctionGracePeriod: TimeInterval = 2.0  // Seconds to wait before giving another correction
     private var countdownTimer: Timer?                  // Timer for positioning countdown
     private let fittingBox = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)  // Area where user should position
+    
+    // - Session timer properties
+    private var sessionTimer: Timer?                    // Timer for tracking session duration
+    private var sessionStartTime: Date?                 // When the session started
     
     //   - Computed Properties
     
@@ -79,6 +87,37 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         poseTimerManager.stopTimer()
         countdownTimer?.invalidate()
         countdownTimer = nil
+        stopSessionTimer()
+    }
+    
+    // - Session Timer Methods
+    
+    /// Starts the session timer to track total training duration
+    private func startSessionTimer() {
+        guard sessionTimer == nil else { return }
+        
+        sessionStartTime = Date()
+        sessionDuration = 0
+        
+        sessionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self, let startTime = self.sessionStartTime else { return }
+            
+            self.sessionDuration = Date().timeIntervalSince(startTime)
+            self.updateSessionElapsedTime()
+        }
+    }
+    
+    /// Stops the session timer
+    private func stopSessionTimer() {
+        sessionTimer?.invalidate()
+        sessionTimer = nil
+    }
+    
+    /// Updates the formatted elapsed time string
+    private func updateSessionElapsedTime() {
+        let minutes = Int(sessionDuration) / 60
+        let seconds = Int(sessionDuration) % 60
+        sessionElapsedTime = String(format: "%02d:%02d", minutes, seconds)
     }
     
     //   - Main Logic
@@ -213,6 +252,9 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private func startPositioningCountdown() {
         phase = .countdown
         positioningCountdownValue = 3
+        
+        // Start session timer when countdown begins
+        startSessionTimer()
         
         countdownTimer?.invalidate()
         
