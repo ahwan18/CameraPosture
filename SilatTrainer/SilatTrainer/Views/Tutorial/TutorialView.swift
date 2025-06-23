@@ -14,6 +14,22 @@ struct TutorialView: View {
         ZStack(alignment: .topTrailing) {
             Color("BackgroundTutorial")
             
+            Button(action: {
+                dismiss()
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    Text("Kembali")
+                        .font(.title3)
+                    Spacer()
+                }
+                .foregroundColor(.yellow)
+                .padding(.leading, 20)
+                .padding(.top, 70)
+            }
+            
             VStack {
                 HStack {
                     Text("Informasi")
@@ -27,18 +43,14 @@ struct TutorialView: View {
                 
                 VStack(spacing: 20) {
                     Button(action: {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            navigate(.caraMenggunakan)
-                        }
+                        navigate(.caraMenggunakan)
                     }) {
                         HStack {
                             Text("Cara Menggunakan Aplikasi SIRAJ")
                                 .foregroundColor(.white)
-                                .font(.title2)
+                                .font(.title3)
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity)
-                                .padding(.leading, 15)
                             
                             Image("AssetListTutorial1")
                                 .resizable()
@@ -54,18 +66,14 @@ struct TutorialView: View {
                     
                     
                     Button(action: {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            navigate(.bukuJurus)
-                        }
+                        navigate(.bukuJurus)
                     }) {
                         HStack {
                             Text("Buku Jurus Tunggal Baku IPSI")
                                 .foregroundColor(.white)
-                                .font(.title2)
+                                .font(.title3)
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity)
-                                .padding(.leading, 15)
                             
                             Image("AssetListTutorial2")
                                 .resizable()
@@ -82,9 +90,10 @@ struct TutorialView: View {
                 Spacer()
             }
             .padding(.horizontal, 30)
-            .padding(.top, 70)
+            .padding(.top, 120)
         }
         .ignoresSafeArea()
+        .navigationBarBackButtonHidden(true)
     }
 }
 
