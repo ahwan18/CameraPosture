@@ -8,6 +8,7 @@ class VoiceFeedbackManager: VoiceFeedbackProtocol {
     private let voiceInstructionInterval: TimeInterval = 4.0
     private weak var poseViewModel: PoseEstimationViewModel?
     private let poseData: [PoseData]
+    private var isMuted: Bool = false
     
     init(poseViewModel: PoseEstimationViewModel, poseData: [PoseData]) {
             self.poseViewModel = poseViewModel
@@ -15,8 +16,22 @@ class VoiceFeedbackManager: VoiceFeedbackProtocol {
         }
     
     func speak(_ text: String, interrupt: Bool, completion: (() -> Void)? = nil) {
-            VoiceHelper.shared.speak(text, interrupt: interrupt, completion: completion)
+            if !isMuted {
+                VoiceHelper.shared.speak(text, interrupt: interrupt, completion: completion)
+            } else {
+                // If muted, just call the completion handler immediately
+                completion?()
+            }
         }
+
+    func setMuted(_ muted: Bool) {
+        self.isMuted = muted
+        
+        // If muting while speech is in progress, stop it
+        if muted && VoiceHelper.shared.isProcessingVoice {
+            VoiceHelper.shared.stopSpeaking()
+        }
+    }
 
     //  - Simple Announcers (tanpa completion)
     func announceDistance(isOptimal: Bool, wasOptimal: Bool) {

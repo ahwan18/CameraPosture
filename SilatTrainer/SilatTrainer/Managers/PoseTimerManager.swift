@@ -13,6 +13,8 @@ class PoseTimerManager {
     private var holdTimer: Timer?
     private var toleranceTimer: Timer?
     private var poseFailedTime: Date?
+    private var isPaused: Bool = false
+    private var pausedElapsedTime: Double = 0.0
 
     private let holdDuration: Double = 8.0
     private let poseTolerance: TimeInterval = 0.15
@@ -24,7 +26,30 @@ class PoseTimerManager {
         guard holdTimer == nil else { return }
         
         elapsedTime = 0.0
+        pausedElapsedTime = 0.0
+        isPaused = false
         poseFailedTime = nil
+        
+        holdTimer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+    }
+    
+    func pauseTimer() {
+        isPaused = true
+        pausedElapsedTime = elapsedTime
+        holdTimer?.invalidate()
+        holdTimer = nil
+        
+        // Store the current state to resume from later
+        delegate?.poseTimerDidUpdate(countdown: Int(holdDuration) - Int(elapsedTime), progress: elapsedTime / holdDuration)
+    }
+    
+    func resumeTimer() {
+        guard isPaused else { return }
+        
+        isPaused = false
+        elapsedTime = pausedElapsedTime
         
         holdTimer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
             self?.tick()
@@ -37,12 +62,13 @@ class PoseTimerManager {
         toleranceTimer?.invalidate()
         toleranceTimer = nil
         elapsedTime = 0.0
+        pausedElapsedTime = 0.0
+        isPaused = false
         poseFailedTime = nil
     }
 
     private func tick() {
-        guard let delegate = delegate else {
-            stopTimer()
+        guard let delegate = delegate, !isPaused else {
             return
         }
 

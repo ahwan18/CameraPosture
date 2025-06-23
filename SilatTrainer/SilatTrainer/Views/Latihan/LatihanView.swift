@@ -64,6 +64,7 @@ struct LatihanView: View {
                                     .font(.system(size: 24, weight: .semibold))
                             }
                             .foregroundColor(.yellow)
+                            .shadow(color: .black, radius: 2, x: 0, y: 2)
                         }
                         
                         Spacer()
@@ -72,6 +73,7 @@ struct LatihanView: View {
                         Text("Jurus 1")
                             .font(.system(size: 36, weight: .bold))
                             .foregroundStyle(.black)
+                            .shadow(color: .white, radius: 2, x: 0, y: 2)
                     }
                     .padding(.horizontal, 16)
                     
@@ -125,17 +127,39 @@ struct LatihanView: View {
                         }
                         .font(.system(size: 18, weight: .medium))
                         
+                        // Control buttons always visible
+                        HStack {
+                            // Mute button on the left side
+                            Button(action: {
+                                latihanVM.toggleMute()
+                            }) {
+                                Image(systemName: latihanVM.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(22)
+                            }
+                            
+                            Spacer()
+                            
+                            // Play/Pause button on the right side
+                            Button(action: {
+                                latihanVM.togglePause()
+                            }) {
+                                Image(systemName: latihanVM.isPaused ? "play.fill" : "pause.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(22)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        
                         // Only show pose matching guidance when at optimal distance and not transitioning
                         if latihanVM.isAtOptimalDistance && !latihanVM.showPoseTransition {
-                            // Pose matching status
-                            // HStack {
-                            //     Image(systemName: latihanVM.isPoseMatched ? "checkmark.circle.fill" : "target")
-                            //         .foregroundColor(latihanVM.isPoseMatched ? .green : .blue)
-                            //     Text(latihanVM.isPoseMatched ? "Pose Cocok - Tahan!" : "Sesuaikan Pose")
-                            //         .foregroundColor(latihanVM.isPoseMatched ? .green : .blue)
-                            // }
-                            // .font(.system(size: 16, weight: .medium))
-                            
                             // Hold timer and progress when pose is matched
                             if latihanVM.isPoseMatched {
                                 VStack(spacing: 8) {
@@ -170,10 +194,10 @@ struct LatihanView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(latihanVM.isPoseMatched ? Color.clear : Color.white.opacity(0.8))
-                    )
+//                    .background(
+//                        RoundedRectangle(cornerRadius: 10)
+//                            .fill(latihanVM.isPoseMatched ? Color.clear : Color.white.opacity(0.8))
+//                    )
                     
                     // Button to finish or skip the current training
                     Button(action: {
