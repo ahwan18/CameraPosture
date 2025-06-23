@@ -18,7 +18,7 @@ class VoiceFeedbackManager: VoiceFeedbackProtocol {
             VoiceHelper.shared.speak(text, interrupt: interrupt, completion: completion)
         }
 
-    // MARK: - Simple Announcers (tanpa completion)
+    //  - Simple Announcers (tanpa completion)
     func announceDistance(isOptimal: Bool, wasOptimal: Bool) {
         if !VoiceHelper.shared.isProcessingVoice, !isOptimal, wasOptimal {
             VoiceHelper.shared.speak("Pastikan seluruh tubuh terlihat", interrupt: false)
