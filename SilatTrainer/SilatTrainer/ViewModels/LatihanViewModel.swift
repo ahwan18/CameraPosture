@@ -2,55 +2,64 @@ import Foundation
 import SwiftUI
 import Vision
 
+/// Represents the different phases of training exercises
 enum LatihanPhase {
-    case positioning
-    case countdown
-    case evaluating
+    case positioning  // User is getting into position
+    case countdown    // Countdown before starting the exercise
+    case evaluating   // Evaluating the user's pose against the target pose
 }
 
+/// ViewModel that manages the training exercise flow, pose matching, timers, and feedback.
+/// Handles user positioning, pose evaluation, and progression through multiple poses.
 class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
-    // - Published Properties (for UI)
+    // MARK: - Published Properties (for UI)
     @Published var currentPoseIndex: Int = 0
-    @Published var isPoseMatched: Bool = false
-    @Published var holdProgress: Double = 0.0
-    @Published var countdownValue: Int = 8
-    @Published var showCompletionMessage: Bool = false
-    @Published var showPoseTransition: Bool = false
-    @Published var isAtOptimalDistance: Bool = true
-    @Published var poseName: String = "A1"
+    @Published var isPoseMatched: Bool = false      // Whether the current pose is matched
+    @Published var holdProgress: Double = 0.0       // Progress of holding the current pose (0.0 to 1.0)
+    @Published var countdownValue: Int = 8          // Countdown seconds for holding a pose
+    @Published var showCompletionMessage: Bool = false  // Whether to show completion message
+    @Published var showPoseTransition: Bool = false     // Whether transitioning between poses
+    @Published var isAtOptimalDistance: Bool = true     // Whether user is at optimal distance for detection
+    @Published var poseName: String = "A1"              // Current pose name for display
     
-    // Positioning and countdown properties
-    @Published var phase: LatihanPhase = .positioning
-    @Published var positioningCountdownValue: Int = 3
-    @Published var isUserPositioned: Bool = false
+    // MARK: - Positioning and countdown properties
+    @Published var phase: LatihanPhase = .positioning   // Current phase of exercise
+    @Published var positioningCountdownValue: Int = 3   // Countdown before starting pose evaluation
+    @Published var isUserPositioned: Bool = false       // Whether user is properly positioned
     
-    //- ViewModels and Managers
-    private var poseViewModel: PoseEstimationViewModel
-    private var poseMatcher: PoseMatcher
-    private var voiceFeedbackManager: VoiceFeedbackManager
-    public var poseTimerManager: PoseTimerManager
+    // MARK: - ViewModels and Managers
+    private var poseViewModel: PoseEstimationViewModel  // Handles pose detection
+    private var poseMatcher: PoseMatcher                // Matches detected pose with target pose
+    private var voiceFeedbackManager: VoiceFeedbackManager  // Provides voice guidance
+    public var poseTimerManager: PoseTimerManager       // Manages pose holding time
 
-    // - Properties
-    let poseData: [PoseData]
-    private var wasAtOptimalDistance: Bool = true
-    private var lastCorrectionTime: Date = .distantPast
-    private let correctionGracePeriod: TimeInterval = 2.0
-    private var countdownTimer: Timer?
-    private let fittingBox = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)
+    // MARK: - Properties
+    let poseData: [PoseData]                           // Collection of target poses
+    private var wasAtOptimalDistance: Bool = true      // Previous optimal distance state
+    private var lastCorrectionTime: Date = .distantPast  // Last time correction was given
+    private let correctionGracePeriod: TimeInterval = 2.0  // Seconds to wait before giving another correction
+    private var countdownTimer: Timer?                  // Timer for positioning countdown
+    private let fittingBox = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)  // Area where user should position
     
-    // - Computed Properties
+    // MARK: - Computed Properties
+    
+    /// The current target pose that the user should match
     var currentTargetPose: PoseData? {
         guard currentPoseIndex < poseData.count else { return nil }
         return poseData[currentPoseIndex]
     }
 
+    /// The next target pose in the sequence
     var nextTargetPose: PoseData? {
         let nextIndex = currentPoseIndex + 1
         guard nextIndex < poseData.count else { return nil }
         return poseData[nextIndex]
     }
 
-    // - Initialization
+    // MARK: - Initialization
+    
+    /// Initializes the view model with a pose detection view model
+    /// - Parameter poseViewModel: The view model responsible for pose detection
     init(poseViewModel: PoseEstimationViewModel) {
         self.poseViewModel = poseViewModel
         self.poseData = PoseLoader.loadPose()
@@ -65,13 +74,17 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         updatePoseName()
     }
     
+    /// Cleans up timers and resources
     func cleanup() {
         poseTimerManager.stopTimer()
         countdownTimer?.invalidate()
         countdownTimer = nil
     }
     
-    // - Main Logic
+    // MARK: - Main Logic
+    
+    /// Updates the training state based on user position and current phase
+    /// Called regularly to process new pose detection data
     func update() {
         self.isUserPositioned = checkUserPosition()
 
@@ -89,19 +102,23 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         }
     }
 
+    /// Evaluates the detected pose against the target pose and provides feedback
     private func evaluatePose() {
         self.isAtOptimalDistance = checkOptimalDistance()
         
+        // Announce change in distance status
         if isAtOptimalDistance != wasAtOptimalDistance {
             voiceFeedbackManager.announceDistance(isOptimal: isAtOptimalDistance, wasOptimal: wasAtOptimalDistance)
             wasAtOptimalDistance = isAtOptimalDistance
         }
         
+        // Skip evaluation during pose transitions
         guard !showPoseTransition else { return }
         
         let timeSinceCorrection = Date().timeIntervalSince(lastCorrectionTime)
         let isInGracePeriod = timeSinceCorrection < correctionGracePeriod
         
+        // Check if the detected pose matches the target pose
         let poseMatches = isAtOptimalDistance && poseMatcher.checkPoseMatch(currentPoseIndex: currentPoseIndex)
         
         if poseMatches && !isInGracePeriod {
@@ -121,7 +138,9 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         }
     }
 
-    // - PoseTimerManagerDelegate
+    // MARK: - PoseTimerManagerDelegate
+    
+    /// Called when the pose has been held for the required duration
     func poseTimerDidComplete() {
         isPoseMatched = false
         
@@ -130,8 +149,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
             
             let completionText = "Bagus! Lanjut ke gerakan berikutnya"
             voiceFeedbackManager.speak(completionText, interrupt: true) {
-                // Ini adalah trailing closure yang benar
-                // Blok ini akan dijalankan HANYA SETELAH suara "Bagus!..." selesai.
+                // This closure will execute ONLY AFTER the "Bagus!..." voice has finished
                 self.currentPoseIndex += 1
                 self.updatePoseName()
                 self.showPoseTransition = false
@@ -143,6 +161,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         }
     }
     
+    /// Called when the pose is no longer held correctly during the timer
     func poseTimerDidFail() {
         voiceFeedbackManager.announcePoseFailure()
         lastCorrectionTime = Date()
@@ -151,6 +170,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         countdownValue = 8
     }
     
+    /// Called when the timer updates with new countdown value and progress
     func poseTimerDidUpdate(countdown: Int, progress: Double) {
         if self.countdownValue != countdown && countdown > 0 {
              voiceFeedbackManager.announceHoldCountdown(second: countdown)
@@ -159,6 +179,8 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         self.holdProgress = progress
     }
     
+    /// Checks if the current pose is still valid for timing
+    /// - Returns: Boolean indicating if the pose is still valid
     func isPoseStillValid() -> Bool {
         let timeSinceCorrection = Date().timeIntervalSince(lastCorrectionTime)
         let isInGracePeriod = timeSinceCorrection < correctionGracePeriod
@@ -166,8 +188,10 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         return isAtOptimalDistance && poseMatcher.checkPoseMatch(currentPoseIndex: currentPoseIndex) && !isInGracePeriod
     }
     
-    // - Private Helpers
+    // MARK: - Private Helpers
     
+    /// Checks if the user is properly positioned within the fitting box
+    /// - Returns: Boolean indicating if user is properly positioned
     private func checkUserPosition() -> Bool {
         let allJointsVisible = checkOptimalDistance()
         
@@ -175,6 +199,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
             return false
         }
         
+        // Check if all detected body parts are within the fitting box
         for point in poseViewModel.detectedBodyParts.values {
             if !fittingBox.contains(point) {
                 return false
@@ -184,6 +209,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         return allJointsVisible
     }
     
+    /// Starts the countdown before beginning pose evaluation
     private func startPositioningCountdown() {
         phase = .countdown
         positioningCountdownValue = 3
@@ -207,6 +233,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         }
     }
     
+    /// Resets back to positioning phase when user moves out of position
     private func resetToPositioningPhase() {
         countdownTimer?.invalidate()
         countdownTimer = nil
@@ -215,6 +242,8 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         voiceFeedbackManager.speak("Posisi salah, kembali ke dalam kotak", interrupt: true)
     }
     
+    /// Checks if all required joints are visible for optimal pose detection
+    /// - Returns: Boolean indicating if all required joints are detected
     private func checkOptimalDistance() -> Bool {
         let requiredJoints: [HumanBodyPoseObservation.JointName] = [
             .nose, .neck, .leftShoulder, .rightShoulder, .leftElbow, .rightElbow,
@@ -224,6 +253,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         return requiredJoints.allSatisfy { poseViewModel.detectedBodyParts[$0] != nil }
     }
     
+    /// Resets all state variables for the next pose
     private func resetForNextPose() {
         isPoseMatched = false
         holdProgress = 0.0
@@ -231,6 +261,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         lastCorrectionTime = .distantPast
     }
     
+    /// Updates the display name of the current pose
     private func updatePoseName() {
         if currentPoseIndex < poseData.count {
             poseName = "A\(currentPoseIndex + 1)"
