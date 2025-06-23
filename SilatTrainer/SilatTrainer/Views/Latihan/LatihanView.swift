@@ -128,20 +128,37 @@ struct LatihanView: View {
                         // Only show pose matching guidance when at optimal distance and not transitioning
                         if latihanVM.isAtOptimalDistance && !latihanVM.showPoseTransition {
                             // Pose matching status
-                            HStack {
-                                Image(systemName: latihanVM.isPoseMatched ? "checkmark.circle.fill" : "target")
-                                    .foregroundColor(latihanVM.isPoseMatched ? .green : .blue)
-                                Text(latihanVM.isPoseMatched ? "Pose Cocok - Tahan!" : "Sesuaikan Pose")
-                                    .foregroundColor(latihanVM.isPoseMatched ? .green : .blue)
-                            }
-                            .font(.system(size: 16, weight: .medium))
+                            // HStack {
+                            //     Image(systemName: latihanVM.isPoseMatched ? "checkmark.circle.fill" : "target")
+                            //         .foregroundColor(latihanVM.isPoseMatched ? .green : .blue)
+                            //     Text(latihanVM.isPoseMatched ? "Pose Cocok - Tahan!" : "Sesuaikan Pose")
+                            //         .foregroundColor(latihanVM.isPoseMatched ? .green : .blue)
+                            // }
+                            // .font(.system(size: 16, weight: .medium))
                             
                             // Hold timer and progress when pose is matched
                             if latihanVM.isPoseMatched {
                                 VStack(spacing: 8) {
-                                    Text("\(latihanVM.countdownValue)")
-                                        .font(.system(size: 48, weight: .bold))
-                                        .foregroundColor(.green)
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 15)
+                                            .fill(Color.black.opacity(0.8))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 15)
+                                                    .stroke(Color.white, lineWidth: 2)
+                                            )
+                                            .frame(width: 200, height: 120)
+                                            
+                                        VStack(spacing: 0) {
+                                            Text("Tahan Posisi")
+                                                .font(.headline)
+                                                .foregroundColor(.white)
+                                                .padding(.top, 10)
+                                                
+                                            Text("\(latihanVM.countdownValue)")
+                                                .font(.system(size: 60, weight: .bold))
+                                                .foregroundColor(.green)
+                                        }
+                                    }
                                     
                                     // Progress bar for hold duration
                                     ProgressView(value: latihanVM.holdProgress)
@@ -155,14 +172,14 @@ struct LatihanView: View {
                     .padding(.vertical, 10)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.8))
+                            .fill(latihanVM.isPoseMatched ? Color.clear : Color.white.opacity(0.8))
                     )
                     
                     // Button to finish or skip the current training
                     Button(action: {
                         navigate(.finish)
                     }) {
-                        Text(latihanVM.showCompletionMessage ? "Selesai" : "Lewati")
+                        Text(latihanVM.showCompletionMessage ? "Selesai" : "")
                     }
                 } else {
                     // Timer display for positioning and countdown phases
