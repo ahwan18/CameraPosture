@@ -45,7 +45,8 @@ struct LatihanView: View {
                 connections: poseViewModel.bodyConnections,
                 targetPose: latihanVM.currentTargetPose,
                 showGuideArrows: latihanVM.isAtOptimalDistance && !latihanVM.isPoseMatched && !latihanVM.showPoseTransition,
-                showFittingBox: latihanVM.phase != .evaluating
+                showFittingBox: latihanVM.phase != .evaluating,
+                isUserPositioned: latihanVM.isUserPositioned
             )
             
             VStack {
@@ -168,22 +169,6 @@ struct LatihanView: View {
                     VStack {
                         HStack {
                             Spacer()
-                            
-                            // Session timer display
-                            // HStack(spacing: 5) {
-                            //     Image(systemName: "clock")
-                            //         .font(.system(size: 16, weight: .medium))
-                            //     Text(latihanVM.sessionElapsedTime)
-                            //         .font(.system(size: 16, weight: .semibold))
-                            // }
-                            // .padding(.horizontal, 10)
-                            // .padding(.vertical, 5)
-                            // .background(
-                            //     RoundedRectangle(cornerRadius: 8)
-                            //         .fill(Color.black.opacity(0.6))
-                            // )
-                            // .foregroundColor(.white)
-                            // .padding(.trailing, 20)
                         }
                         .padding(.top, 10)
                         
@@ -194,13 +179,9 @@ struct LatihanView: View {
                         Spacer()
                         // Positioning phase UI - guides the user to position correctly in frame
                         if latihanVM.phase == .positioning {
-                            Text("Posisikan Diri Anda")
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .shadow(radius: 3)
+                            // Remove the text here as it's now in PoseOverlayView
                             
-                            Text(latihanVM.isUserPositioned ? "Bagus! Tahan Posisi" : "Pastikan seluruh tubuh berada di dalam kotak")
+                            Text(latihanVM.isUserPositioned ? "Bagus! Tahan Posisi" : "")
                                 .font(.headline)
                                 .fontWeight(.medium)
                                 .foregroundColor(latihanVM.isUserPositioned ? .green : .yellow)
@@ -309,7 +290,7 @@ struct PoseTransitionView: View {
                     
                     // Pose identifier
                     Text("A\(poseNumber)")
-                        .font(.system(size: 72, weight: .bold))
+                        .font(.system(size: 50, weight: .bold))
                         .foregroundColor(.yellow)
                     
                     // Pose reference image (if available)
@@ -317,7 +298,7 @@ struct PoseTransitionView: View {
                         Image("a\(poseNumber)")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: 300)
+                            .frame(maxHeight: 600)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
                                     .fill(Color.white.opacity(0.1))
@@ -325,15 +306,7 @@ struct PoseTransitionView: View {
                             .padding(.horizontal, 40)
                     }
                     
-                    // // Countdown text
-                    // Text("Siap dalam...")
-                    //     .font(.system(size: 24, weight: .medium))
-                    //     .foregroundColor(.white.opacity(0.8))
-                    
-                    // // Countdown value
-                    // Text("2")
-                    //     .font(.system(size: 60, weight: .bold))
-                    //     .foregroundColor(.green)
+
                 }
                 
                 Spacer()

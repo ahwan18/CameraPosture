@@ -21,6 +21,7 @@ struct PoseOverlayView: View {
     let showGuideArrows: Bool
     let showFittingBox: Bool
     let fittingBoxRect = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)
+    let isUserPositioned: Bool
     
     // Convert joint key to HumanBodyPoseObservation.JointName
     private func keyToJointName(_ key: String) -> HumanBodyPoseObservation.JointName? {
@@ -294,12 +295,59 @@ struct PoseOverlayView: View {
                         height: fittingBoxRect.height * geometry.size.height
                     )
                     
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(style: StrokeStyle(lineWidth: 4, dash: [10]))
-                        .foregroundColor(.white.opacity(0.8))
-                        .shadow(color: .black.opacity(0.7), radius: 5)
-                        .frame(width: boxRect.width, height: boxRect.height)
-                        .position(x: boxRect.midX, y: boxRect.midY)
+                    // Green positioning frame with thicker corners
+                    ZStack {
+                        // Main rectangle outline - invisible, just for positioning
+                        Rectangle()
+                            .stroke(Color.clear)
+                            .frame(width: boxRect.width, height: boxRect.height)
+                            .position(x: boxRect.midX, y: boxRect.midY)
+                        
+                        // Box text below the frame
+                        VStack(spacing: 20) {
+                            Spacer()
+                            
+                            Text("Sesuaikan Posisi Anda \n Di Dalam Kotak")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .shadow(radius: 3)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, boxRect.height + 20) // Position below the box
+                        }
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        
+                        // Dynamic corner color based on user position
+                        let cornerColor = isUserPositioned ? Color.green : Color.red
+                        
+                        // Top-left corner
+                        CornerShape(corner: .topLeft)
+                            .stroke(cornerColor, lineWidth: 16)
+                            .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
+                            .position(x: boxRect.minX + boxRect.width * 0.1, 
+                                     y: boxRect.minY + boxRect.height * 0.1)
+                        
+                        // Top-right corner
+                        CornerShape(corner: .topRight)
+                            .stroke(cornerColor, lineWidth: 16)
+                            .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
+                            .position(x: boxRect.maxX - boxRect.width * 0.1, 
+                                     y: boxRect.minY + boxRect.height * 0.1)
+                        
+                        // Bottom-left corner
+                        CornerShape(corner: .bottomLeft)
+                            .stroke(cornerColor, lineWidth: 16)
+                            .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
+                            .position(x: boxRect.minX + boxRect.width * 0.1, 
+                                     y: boxRect.maxY - boxRect.height * 0.1)
+                        
+                        // Bottom-right corner
+                        CornerShape(corner: .bottomRight)
+                            .stroke(cornerColor, lineWidth: 16)
+                            .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
+                            .position(x: boxRect.maxX - boxRect.width * 0.1, 
+                                     y: boxRect.maxY - boxRect.height * 0.1)
+                    }
                 }
                 
                 // Calculate user body dimensions for adaptive transformations
@@ -500,5 +548,42 @@ struct PoseOverlayView: View {
                 }
             }
         }
+    }
+}
+
+/// A shape that draws just the corner of a rectangle
+struct CornerShape: Shape {
+    enum Corner {
+        case topLeft
+        case topRight
+        case bottomLeft
+        case bottomRight
+    }
+    
+    let corner: Corner
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        switch corner {
+        case .topLeft:
+            path.move(to: CGPoint(x: 0, y: rect.height * 0.6))
+            path.addLine(to: CGPoint(x: 0, y: 0))
+            path.addLine(to: CGPoint(x: rect.width * 0.6, y: 0))
+        case .topRight:
+            path.move(to: CGPoint(x: rect.width * 0.4, y: 0))
+            path.addLine(to: CGPoint(x: rect.width, y: 0))
+            path.addLine(to: CGPoint(x: rect.width, y: rect.height * 0.6))
+        case .bottomLeft:
+            path.move(to: CGPoint(x: 0, y: rect.height * 0.4))
+            path.addLine(to: CGPoint(x: 0, y: rect.height))
+            path.addLine(to: CGPoint(x: rect.width * 0.6, y: rect.height))
+        case .bottomRight:
+            path.move(to: CGPoint(x: rect.width * 0.4, y: rect.height))
+            path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+            path.addLine(to: CGPoint(x: rect.width, y: rect.height * 0.4))
+        }
+        
+        return path
     }
 }
