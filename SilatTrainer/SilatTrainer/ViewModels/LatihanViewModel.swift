@@ -9,7 +9,7 @@ enum LatihanPhase {
 }
 
 class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
-    // MARK: - Published Properties (for UI)
+    // - Published Properties (for UI)
     @Published var currentPoseIndex: Int = 0
     @Published var isPoseMatched: Bool = false
     @Published var holdProgress: Double = 0.0
@@ -24,13 +24,13 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     @Published var positioningCountdownValue: Int = 3
     @Published var isUserPositioned: Bool = false
     
-    // MARK: - ViewModels and Managers
+    //- ViewModels and Managers
     private var poseViewModel: PoseEstimationViewModel
     private var poseMatcher: PoseMatcher
     private var voiceFeedbackManager: VoiceFeedbackManager
     public var poseTimerManager: PoseTimerManager
 
-    // MARK: - Properties
+    // - Properties
     let poseData: [PoseData]
     private var wasAtOptimalDistance: Bool = true
     private var lastCorrectionTime: Date = .distantPast
@@ -38,7 +38,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private var countdownTimer: Timer?
     private let fittingBox = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)
     
-    // MARK: - Computed Properties
+    // - Computed Properties
     var currentTargetPose: PoseData? {
         guard currentPoseIndex < poseData.count else { return nil }
         return poseData[currentPoseIndex]
@@ -50,7 +50,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         return poseData[nextIndex]
     }
 
-    // MARK: - Initialization
+    // - Initialization
     init(poseViewModel: PoseEstimationViewModel) {
         self.poseViewModel = poseViewModel
         self.poseData = PoseLoader.loadPose()
@@ -71,7 +71,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         countdownTimer = nil
     }
     
-    // MARK: - Main Logic
+    // - Main Logic
     func update() {
         self.isUserPositioned = checkUserPosition()
 
@@ -121,7 +121,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         }
     }
 
-    // MARK: - PoseTimerManagerDelegate
+    // - PoseTimerManagerDelegate
     func poseTimerDidComplete() {
         isPoseMatched = false
         
@@ -166,7 +166,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         return isAtOptimalDistance && poseMatcher.checkPoseMatch(currentPoseIndex: currentPoseIndex) && !isInGracePeriod
     }
     
-    // MARK: - Private Helpers
+    // - Private Helpers
     
     private func checkUserPosition() -> Bool {
         let allJointsVisible = checkOptimalDistance()
