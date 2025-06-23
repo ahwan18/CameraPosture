@@ -13,9 +13,10 @@ class PoseTimerManager {
     private var holdTimer: Timer?
     private var toleranceTimer: Timer?
     private var poseFailedTime: Date?
-    
-    // Flag untuk menandai apakah timer berhasil diselesaikan
-    private var timerCompleted: Bool = false
+
+    private var isPaused: Bool = false
+    private var pausedElapsedTime: Double = 0.0
+
 
     private let holdDuration: Double = 8.0
     private let poseTolerance: TimeInterval = 0.15
@@ -32,7 +33,30 @@ class PoseTimerManager {
         print("[PoseTimerManager] Memulai timer")
         timerCompleted = false
         elapsedTime = 0.0
+        pausedElapsedTime = 0.0
+        isPaused = false
         poseFailedTime = nil
+        
+        holdTimer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+    }
+    
+    func pauseTimer() {
+        isPaused = true
+        pausedElapsedTime = elapsedTime
+        holdTimer?.invalidate()
+        holdTimer = nil
+        
+        // Store the current state to resume from later
+        delegate?.poseTimerDidUpdate(countdown: Int(holdDuration) - Int(elapsedTime), progress: elapsedTime / holdDuration)
+    }
+    
+    func resumeTimer() {
+        guard isPaused else { return }
+        
+        isPaused = false
+        elapsedTime = pausedElapsedTime
         
         holdTimer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
             self?.tick()
@@ -46,20 +70,13 @@ class PoseTimerManager {
         toleranceTimer?.invalidate()
         toleranceTimer = nil
         elapsedTime = 0.0
+        pausedElapsedTime = 0.0
+        isPaused = false
         poseFailedTime = nil
     }
 
     private func tick() {
-        guard let delegate = delegate else {
-            print("[PoseTimerManager] Delegate hilang, menghentikan timer")
-            stopTimer()
-            return
-        }
-        
-        // Jika timer sudah selesai, tidak perlu melakukan tick lagi
-        if timerCompleted {
-            print("[PoseTimerManager] Timer sudah selesai sebelumnya, menghentikan")
-            stopTimer()
+        guard let delegate = delegate, !isPaused else {
             return
         }
 

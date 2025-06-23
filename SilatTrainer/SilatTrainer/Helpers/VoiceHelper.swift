@@ -25,6 +25,15 @@ class VoiceHelper: NSObject, AVSpeechSynthesizerDelegate {
     }
     
     //  - Public Methods
+    func stopSpeaking() {
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+            isProcessingVoice = false
+            self.onComplete?()
+            self.onComplete = nil
+        }
+    }
+    
     func speak(_ text: String, interrupt: Bool = false, completion: (() -> Void)? = nil) {
         // Check if enough time has passed since last speech (if not interrupting)
         if !interrupt, let lastTime = lastSpokenTime,
@@ -57,5 +66,4 @@ class VoiceHelper: NSObject, AVSpeechSynthesizerDelegate {
         
         print("Speaking: \(text)")
     }
-    
 }
