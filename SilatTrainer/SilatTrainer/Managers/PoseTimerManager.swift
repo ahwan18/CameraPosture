@@ -13,8 +13,10 @@ class PoseTimerManager {
     private var holdTimer: Timer?
     private var toleranceTimer: Timer?
     private var poseFailedTime: Date?
+
     private var isPaused: Bool = false
     private var pausedElapsedTime: Double = 0.0
+
 
     private let holdDuration: Double = 8.0
     private let poseTolerance: TimeInterval = 0.15
@@ -23,8 +25,13 @@ class PoseTimerManager {
     private var elapsedTime: Double = 0.0
     
     func startTimer() {
-        guard holdTimer == nil else { return }
+        guard holdTimer == nil else { 
+            print("[PoseTimerManager] Timer sudah berjalan, tidak perlu memulai lagi")
+            return 
+        }
         
+        print("[PoseTimerManager] Memulai timer")
+        timerCompleted = false
         elapsedTime = 0.0
         pausedElapsedTime = 0.0
         isPaused = false
@@ -57,6 +64,7 @@ class PoseTimerManager {
     }
     
     func stopTimer() {
+        print("[PoseTimerManager] Menghentikan timer: completed=\(timerCompleted)")
         holdTimer?.invalidate()
         holdTimer = nil
         toleranceTimer?.invalidate()
@@ -85,6 +93,8 @@ class PoseTimerManager {
             
             // Check for completion
             if elapsedTime >= holdDuration {
+                print("[PoseTimerManager] Timer selesai, elapsed time = \(elapsedTime)")
+                timerCompleted = true
                 stopTimer()
                 delegate.poseTimerDidComplete()
             }
@@ -96,6 +106,7 @@ class PoseTimerManager {
             } else {
                 // Failure already noticed, check if tolerance is exceeded
                 if Date().timeIntervalSince(poseFailedTime!) >= poseTolerance {
+                    print("[PoseTimerManager] Pose tidak valid melebihi toleransi")
                     stopTimer()
                     delegate.poseTimerDidFail()
                 }
