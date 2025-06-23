@@ -13,10 +13,10 @@ class PoseTimerManager {
     private var holdTimer: Timer?
     private var toleranceTimer: Timer?
     private var poseFailedTime: Date?
+    private var timerCompleted: Bool = false
 
     private var isPaused: Bool = false
     private var pausedElapsedTime: Double = 0.0
-
 
     private let holdDuration: Double = 8.0
     private let poseTolerance: TimeInterval = 0.15

@@ -38,6 +38,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private var poseMatcher: PoseMatcher                // Matches detected pose with target pose
     private var voiceFeedbackManager: VoiceFeedbackManager  // Provides voice guidance
     public var poseTimerManager: PoseTimerManager       // Manages pose holding time
+    private var hasNavigatedToFinish: Bool = false      // Flag to track if we've navigated to finish view
     
     // Navigation callback for auto-navigation to finish view
     var navigateToFinish: (() -> Void)?
@@ -49,8 +50,8 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private let correctionGracePeriod: TimeInterval = 2.0  // Seconds to wait before giving another correction
     private var countdownTimer: Timer?                  // Timer for positioning countdown
     private let fittingBox = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)  // Area where user should position
+    private var lastPoseValidStatus: Bool = false       // Track last pose validation status for logging
     
-
     // - Session timer properties
     private var sessionTimer: Timer?                    // Timer for tracking session duration
     private var sessionStartTime: Date?                 // When the session started
