@@ -12,7 +12,7 @@ enum LatihanPhase {
 /// ViewModel that manages the training exercise flow, pose matching, timers, and feedback.
 /// Handles user positioning, pose evaluation, and progression through multiple poses.
 class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
-    // MARK: - Published Properties (for UI)
+    // - Published Properties (for UI)
     @Published var currentPoseIndex: Int = 0
     @Published var isPoseMatched: Bool = false      // Whether the current pose is matched
     @Published var holdProgress: Double = 0.0       // Progress of holding the current pose (0.0 to 1.0)
@@ -22,18 +22,18 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     @Published var isAtOptimalDistance: Bool = true     // Whether user is at optimal distance for detection
     @Published var poseName: String = "A1"              // Current pose name for display
     
-    // MARK: - Positioning and countdown properties
+    // - Positioning and countdown properties
     @Published var phase: LatihanPhase = .positioning   // Current phase of exercise
     @Published var positioningCountdownValue: Int = 3   // Countdown before starting pose evaluation
     @Published var isUserPositioned: Bool = false       // Whether user is properly positioned
     
-    // MARK: - ViewModels and Managers
+    //  - ViewModels and Managers
     private var poseViewModel: PoseEstimationViewModel  // Handles pose detection
     private var poseMatcher: PoseMatcher                // Matches detected pose with target pose
     private var voiceFeedbackManager: VoiceFeedbackManager  // Provides voice guidance
     public var poseTimerManager: PoseTimerManager       // Manages pose holding time
 
-    // MARK: - Properties
+    //   - Properties
     let poseData: [PoseData]                           // Collection of target poses
     private var wasAtOptimalDistance: Bool = true      // Previous optimal distance state
     private var lastCorrectionTime: Date = .distantPast  // Last time correction was given
@@ -41,7 +41,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private var countdownTimer: Timer?                  // Timer for positioning countdown
     private let fittingBox = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)  // Area where user should position
     
-    // MARK: - Computed Properties
+    //   - Computed Properties
     
     /// The current target pose that the user should match
     var currentTargetPose: PoseData? {
@@ -56,7 +56,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         return poseData[nextIndex]
     }
 
-    // MARK: - Initialization
+    //   - Initialization
     
     /// Initializes the view model with a pose detection view model
     /// - Parameter poseViewModel: The view model responsible for pose detection
@@ -81,7 +81,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         countdownTimer = nil
     }
     
-    // MARK: - Main Logic
+    //   - Main Logic
     
     /// Updates the training state based on user position and current phase
     /// Called regularly to process new pose detection data
@@ -138,7 +138,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         }
     }
 
-    // MARK: - PoseTimerManagerDelegate
+    //   - PoseTimerManagerDelegate
     
     /// Called when the pose has been held for the required duration
     func poseTimerDidComplete() {
@@ -188,7 +188,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         return isAtOptimalDistance && poseMatcher.checkPoseMatch(currentPoseIndex: currentPoseIndex) && !isInGracePeriod
     }
     
-    // MARK: - Private Helpers
+    //   - Private Helpers
     
     /// Checks if the user is properly positioned within the fitting box
     /// - Returns: Boolean indicating if user is properly positioned
