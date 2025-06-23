@@ -10,25 +10,31 @@ import SwiftUI
 struct BukuJurusIpsi: View {
 
     var body: some View {
-        VStack() {
-            Text("Buku Jurus Tunggal Baku IPSI")
-                .font(.title)
-                .fontWeight(.bold)
-                .padding()
-                .multilineTextAlignment(.center)
+        ZStack() {
+            Color("BackgroundTutorial")
             
-            if let url = Bundle.main.url(forResource: "contoh", withExtension: "pdf") {
-                PDFViewer(url: url)
-                    .cornerRadius(10)
-                    .padding()
-            } else {
-                Text("PDF not found.")
-                    .foregroundColor(.red)
+            VStack {
+                Spacer()
+                HStack {
+                    Text("Kitab Jurus Tunggal Baku IPSI")
+                        .font(.title3)
+                        .padding(.bottom, 10)
+                        .foregroundStyle(.white)
+                    Spacer()
+                }
+                if let url = Bundle.main.url(forResource: "BukuPanduanJurusTunggalBakuIPSI", withExtension: "pdf") {
+                    PDFViewer(url: url)
+                        .frame(height: 600)
+                        .cornerRadius(10)
+                } else {
+                    Text("PDF not found.")
+                        .foregroundColor(.red)
+                }
+                Spacer()
             }
-
-            
-            Spacer()
+            .padding(.horizontal, 30)
         }
+        .ignoresSafeArea()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 //        .navigationBarBackButtonHidden(true)
     }
