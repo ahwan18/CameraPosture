@@ -53,10 +53,26 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private let fittingBox = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)  // Area where user should position
     private var lastPoseValidStatus: Bool = false       // Track last pose validation status for logging
     
+    // - Tracking pose accuracy and results
+    private var poseFirstAttemptSuccess: [Int: Bool] = [:] // Track if pose was completed correctly on first attempt
+    private var poseTimeToComplete: [Int: Double] = [:]    // Track time to complete each pose
+    private var poseUserImages: [Int: UIImage] = [:]       // Store images of user for each pose
+    private var poseJointPositions: [Int: [String: CGPoint]] = [:] // Store joint positions for each pose
+    private var poseAttemptStartTime: Date?                // When user started attempting current pose
+    private var poseMadeError: Bool = false                // If user made an error during countdown
+    private var poseTransitionCount: Int = 0               // Count of pose transitions (splash screens)
+    private var poseHadHoldFailure: [Int: Bool] = [:]      // Track if pose had hold failure (poseTimerDidFail) on first attempt
+    private var poseFailureImages: [Int: UIImage] = [:]    // Store frame ke-5 setelah gagal hold pose
+    private var poseFailureJoints: [Int: [String: CGPoint]] = [:] // Store joints pada frame ke-5 setelah gagal
+    private var failureFrameTimer: Timer? = nil
+    private var failureFrameCount: Int = 0
+    
     // - Session timer properties
     private var sessionTimer: Timer?                    // Timer for tracking session duration
     private var sessionStartTime: Date?                 // When the session started
-    private var sessionPauseTime: TimeInterval = 0     // Time accumulated before pause
+    private var sessionPauseTime: TimeInterval = 0      // Time accumulated before pause
+    private var actualTrainingStartTime: Date?          // When user actually started training (after fitting box)
+    private var actualTrainingEndTime: Date?            // When user actually ended training (after fitting box)
     
     //   - Computed Properties
 
@@ -207,35 +223,77 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     func poseTimerDidComplete() {
         isPoseMatched = false
         
-        print("Pose Timer Complete: currentPoseIndex = \(currentPoseIndex), total poses = \(poseData.count)")
+        // Calculate time to complete this pose
+        if let startTime = poseAttemptStartTime {
+            let completionTime = Date().timeIntervalSince(startTime)
+            poseTimeToComplete[currentPoseIndex] = completionTime
+            print("⏱️ Pose A\(currentPoseIndex + 1) selesai dalam \(String(format: "%.2f", completionTime)) detik")
+        }
+        
+        // Pastikan kita memiliki gambar untuk pose ini
+        if poseUserImages[currentPoseIndex] == nil {
+            if let frame = poseViewModel.currentFrame {
+                print("📸 Mengambil gambar akhir untuk pose A\(currentPoseIndex + 1) saat selesai")
+                poseUserImages[currentPoseIndex] = frame
+                
+                // Save joint positions
+                if let joints = convertJointPositionsToStringKeys(poseViewModel.detectedBodyParts) {
+                    poseJointPositions[currentPoseIndex] = joints
+                    print("📊 Menyimpan \(joints.count) joint positions akhir untuk pose A\(currentPoseIndex + 1)")
+                }
+            }
+        }
         
         // Pose terakhir adalah currentPoseIndex == (poseData.count - 1)
         let isLastPose = (currentPoseIndex >= poseData.count - 1)
-        print("Apakah ini pose terakhir? \(isLastPose)")
+        print("🔄 Pose A\(currentPoseIndex + 1) selesai. Apakah ini pose terakhir? \(isLastPose)")
         
         if !isLastPose {
             showPoseTransition = true
+            // Increment transition count
+            poseTransitionCount += 1
             
             let completionText = "Bagus! Lanjut ke gerakan berikutnya"
-            voiceFeedbackManager.speak(completionText, interrupt: true) {
-                // This closure will execute ONLY AFTER the "Bagus!..." voice has finished
+            if !isMuted {
+                voiceFeedbackManager.speak(completionText, interrupt: true) {
+                    // This closure will execute ONLY AFTER the "Bagus!..." voice has finished
+                    self.currentPoseIndex += 1
+                    print("🔄 Pindah ke pose berikutnya: A\(self.currentPoseIndex + 1)")
+                    self.updatePoseName()
+                    self.showPoseTransition = false
+                    self.resetForNextPose()
+                }
+            } else {
+                // If muted, still execute the callback
                 self.currentPoseIndex += 1
-                print("Pindah ke pose berikutnya: \(self.currentPoseIndex)")
+                print("🔄 Pindah ke pose berikutnya: A\(self.currentPoseIndex + 1) (muted)")
                 self.updatePoseName()
                 self.showPoseTransition = false
                 self.resetForNextPose()
             }
         } else {
             // Sudah di pose terakhir, navigasi ke finish
-            print("SELESAI: Ini adalah pose terakhir (\(currentPoseIndex + 1) dari \(poseData.count))")
+            print("🏁 SELESAI: Ini adalah pose terakhir (A\(currentPoseIndex + 1) dari \(poseData.count))")
             showCompletionMessage = true
             
             // Pastikan timer berhenti
             poseTimerManager.stopTimer()
+            stopSessionTimer()
+            
+            // Set waktu akhir latihan untuk perhitungan durasi
+            actualTrainingEndTime = Date()
+            
+            // Buat hasil training
+            print("📊 Membuat hasil training dari \(poseData.count) pose...")
+            let trainingResult = generateTrainingResult()
+            
+            // Simpan hasil ke service
+            TrainingResultService.shared.saveTrainingResult(trainingResult)
+            print("💾 Hasil latihan berhasil disimpan. Durasi: \(trainingResult.duration)s, Benar: \(trainingResult.correctPoses)/\(trainingResult.totalPoses)")
             
             // Cek apakah sudah pernah navigasi ke FinishView
             if !hasNavigatedToFinish {
-                print("Navigasi ke FinishView...")
+                print("🔀 Navigasi ke RekapView...")
                 
                 // Set flag untuk mencegah navigasi berulang
                 hasNavigatedToFinish = true
@@ -245,12 +303,203 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
                     self.navigateToFinish?()
                 }
             } else {
-                print("Sudah pernah navigasi ke FinishView, abaikan")
+                print("⚠️ Sudah pernah navigasi ke RekapView, abaikan")
             }
             
             // Suara tetap dijalankan secara terpisah
-            voiceFeedbackManager.speak("Selamat! Semua gerakan telah diselesaikan.", interrupt: true)
+            if !isMuted {
+                voiceFeedbackManager.speak("Selamat! Semua gerakan telah diselesaikan.", interrupt: true)
+            }
         }
+    }
+    
+    /// Menghasilkan objek TrainingResult dari sesi latihan saat ini
+    private func generateTrainingResult() -> TrainingResult {
+        // Hitung jumlah pose yang benar: hanya jika poseHadHoldFailure[index] == false (atau tidak ada entry)
+        var correctPosesCount = 0
+        for i in 0..<poseData.count {
+            let hadFail = poseHadHoldFailure[i] ?? false
+            if !hadFail {
+                correctPosesCount += 1
+            }
+        }
+        
+        // Debug info untuk presisi
+        print("🔍 DETAIL PRESISI POSE (berdasarkan poseHadHoldFailure):")
+        for i in 0..<poseData.count {
+            let hadFail = poseHadHoldFailure[i] ?? false
+            print("  - Pose A\(i+1): \(!hadFail ? "✅ BENAR" : "❌ SALAH")")
+        }
+        print("📊 Total presisi: \(correctPosesCount)/\(poseData.count)")
+        
+        // Hitung durasi yang sebenarnya (mengurangi waktu transisi)
+        var actualDuration: Int = 0
+        if let startTime = actualTrainingStartTime, let endTime = actualTrainingEndTime {
+            let rawDuration = Int(endTime.timeIntervalSince(startTime))
+            let transitionDeduction = poseTransitionCount * 2
+            actualDuration = max(0, rawDuration - transitionDeduction)
+            print("⏱️ Durasi aktual: \(rawDuration)s - \(transitionDeduction)s (transisi) = \(actualDuration)s")
+        } else if let startTime = actualTrainingStartTime {
+            let rawDuration = Int(Date().timeIntervalSince(startTime))
+            let transitionDeduction = poseTransitionCount * 2
+            actualDuration = max(0, rawDuration - transitionDeduction)
+            print("⏱️ Durasi (tanpa endTime): \(rawDuration)s - \(transitionDeduction)s (transisi) = \(actualDuration)s")
+        } else {
+            actualDuration = Int(sessionDuration)
+            print("⏱️ Menggunakan durasi sesi: \(actualDuration)s")
+        }
+        
+        // Set waktu selesai latihan untuk perhitungan durasi
+        if actualTrainingStartTime != nil && actualTrainingEndTime == nil {
+            actualTrainingEndTime = Date()
+        }
+        
+        // Pastikan semua pose memiliki data (bahkan jika hanya placeholder)
+        ensureAllPosesHaveData()
+        
+        // Buat detail untuk setiap pose
+        var poseDetails = [PoseDetail]()
+        
+        for index in 0..<poseData.count {
+            let pose = poseData[index]
+            let poseName = "A\(index + 1)"
+            let isCorrect = !(poseHadHoldFailure[index] ?? false)
+            let timeToComplete = poseTimeToComplete[index] ?? 0.0
+            
+            // Ambil data gambar dan joint jika ada
+            let userImage: UIImage? = isCorrect ? poseUserImages[index] : poseFailureImages[index] ?? poseUserImages[index]
+            let jointPositions: [String: CGPoint]? = isCorrect ? poseJointPositions[index] : poseFailureJoints[index] ?? poseJointPositions[index]
+            
+            // Ambil joint ideal dari poseData.json
+            let idealJointPositions: [String: CGPoint] = pose.joints.mapValues { CGPoint(x: $0.x, y: $0.y) }
+            
+            // Gunakan placeholder image jika tidak ada gambar
+            // TODO: Tambahkan idealPoseImage jika tersedia
+            let idealImage: UIImage? = nil
+            
+            let poseDetail = PoseDetail(
+                poseName: poseName,
+                poseId: pose.poseId,
+                isCompletedCorrectly: isCorrect,
+                timeToComplete: timeToComplete,
+                userPoseImage: userImage,
+                idealPoseImage: idealImage,
+                jointPositions: jointPositions,
+                idealJointPositions: idealJointPositions
+            )
+            
+            poseDetails.append(poseDetail)
+        }
+        
+        return TrainingResult(
+            duration: actualDuration,
+            totalPoses: poseData.count,
+            correctPoses: correctPosesCount,
+            poseDetails: poseDetails
+        )
+    }
+    
+    /// Memastikan semua pose memiliki data, bahkan jika belum dicoba
+    private func ensureAllPosesHaveData() {
+        print("Memastikan semua pose memiliki data...")
+        
+        // Cari pose yang berhasil sebagai alternatif
+        var successfulPoseImage: UIImage? = nil
+        var successfulJointPositions: [String: CGPoint]? = nil
+        
+        // Cari pose sukses pertama untuk dijadikan template
+        for index in 0..<poseData.count {
+            if let image = poseUserImages[index], let joints = poseJointPositions[index], !joints.isEmpty {
+                successfulPoseImage = image
+                successfulJointPositions = joints
+                break
+            }
+        }
+        
+        // Jika tidak ada pose sukses sama sekali, gunakan frame dan joints terakhir yang tersedia
+        if successfulPoseImage == nil {
+            if let currentFrame = poseViewModel.currentFrame {
+                successfulPoseImage = currentFrame
+                successfulJointPositions = convertJointPositionsToStringKeys(poseViewModel.detectedBodyParts)
+            } else {
+                // Jika tidak ada frame sama sekali, buat placeholder kosong
+                successfulPoseImage = createPlaceholderImage()
+                successfulJointPositions = createPlaceholderJoints()
+            }
+        }
+        
+        // Loop through all poses to ensure they have data
+        for index in 0..<poseData.count {
+            print("Mengecek data pose \(index+1)...")
+            
+            // Jika pose tidak memiliki data gambar
+            if poseUserImages[index] == nil {
+                print("Pose \(index+1) tidak memiliki gambar, menambahkan placeholder...")
+                poseUserImages[index] = successfulPoseImage
+            }
+            
+            // Jika pose tidak memiliki data joint positions
+            if poseJointPositions[index] == nil || poseJointPositions[index]?.isEmpty == true {
+                print("Pose \(index+1) tidak memiliki joint positions, menambahkan placeholder...")
+                poseJointPositions[index] = successfulJointPositions
+            }
+            
+            // Pastikan nilai-nilai lainnya juga terisi
+            poseFirstAttemptSuccess[index] = poseFirstAttemptSuccess[index] ?? false
+            poseTimeToComplete[index] = poseTimeToComplete[index] ?? 0.0
+        }
+    }
+    
+    /// Creates a placeholder image for poses without data
+    private func createPlaceholderImage() -> UIImage {
+        let size = CGSize(width: 300, height: 400)
+        UIGraphicsBeginImageContext(size)
+        defer { UIGraphicsEndImageContext() }
+        
+        if let context = UIGraphicsGetCurrentContext() {
+            context.setFillColor(UIColor.white.cgColor)
+            context.fill(CGRect(origin: .zero, size: size))
+            
+            // Tambahkan teks placeholder
+            let text = "Tidak ada data pose"
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 18),
+                .foregroundColor: UIColor.gray
+            ]
+            
+            let textSize = text.size(withAttributes: attributes)
+            let rect = CGRect(
+                x: (size.width - textSize.width) / 2,
+                y: (size.height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            
+            text.draw(in: rect, withAttributes: attributes)
+        }
+        
+        return UIGraphicsGetImageFromCurrentImageContext() ?? UIImage()
+    }
+    
+    /// Creates placeholder skeleton data
+    private func createPlaceholderJoints() -> [String: CGPoint] {
+        // Normalized coordinates (0-1 range)
+        return [
+            "nose": CGPoint(x: 0.5, y: 0.2),
+            "neck": CGPoint(x: 0.5, y: 0.3),
+            "leftShoulder": CGPoint(x: 0.6, y: 0.3),
+            "rightShoulder": CGPoint(x: 0.4, y: 0.3),
+            "leftElbow": CGPoint(x: 0.7, y: 0.4),
+            "rightElbow": CGPoint(x: 0.3, y: 0.4),
+            "leftWrist": CGPoint(x: 0.7, y: 0.5),
+            "rightWrist": CGPoint(x: 0.3, y: 0.5),
+            "leftHip": CGPoint(x: 0.55, y: 0.6),
+            "rightHip": CGPoint(x: 0.45, y: 0.6),
+            "leftKnee": CGPoint(x: 0.55, y: 0.8),
+            "rightKnee": CGPoint(x: 0.45, y: 0.8),
+            "leftAnkle": CGPoint(x: 0.55, y: 0.95),
+            "rightAnkle": CGPoint(x: 0.45, y: 0.95)
+        ]
     }
     
     /// Called when the pose is no longer held correctly during the timer
@@ -260,6 +509,30 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         isPoseMatched = false
         holdProgress = 0.0
         countdownValue = 8
+        // Tandai pose ini sebagai gagal pada hold pose (evaluasi) di percobaan pertama
+        if phase == .evaluating && poseHadHoldFailure[currentPoseIndex] != true {
+            print("❌ poseTimerDidFail: Pose A\(currentPoseIndex+1) gagal pada hold pose (percobaan pertama)")
+            poseHadHoldFailure[currentPoseIndex] = true
+            // Mulai timer untuk capture frame ke-5 setelah gagal
+            failureFrameCount = 0
+            failureFrameTimer?.invalidate()
+            failureFrameTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+                guard let self = self else { return }
+                self.failureFrameCount += 1
+                print("[FailureFrame] Counting: \(self.failureFrameCount)")
+                if self.failureFrameCount == 5 {
+                    if let frame = self.poseViewModel.currentFrame {
+                        print("[FailureFrame] Captured frame ke-5 untuk pose A\(self.currentPoseIndex+1)")
+                        self.poseFailureImages[self.currentPoseIndex] = frame
+                        if let joints = self.convertJointPositionsToStringKeys(self.poseViewModel.detectedBodyParts) {
+                            self.poseFailureJoints[self.currentPoseIndex] = joints
+                        }
+                    }
+                    self.failureFrameTimer?.invalidate()
+                    self.failureFrameTimer = nil
+                }
+            }
+        }
     }
     
     /// Called when the timer updates with new countdown value and progress
@@ -320,24 +593,94 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         phase = .countdown
         positioningCountdownValue = 3
         
-        // Start session timer when countdown begins
-        startSessionTimer()
+        // Reset error tracking for this pose attempt
+        poseMadeError = false
+        poseAttemptStartTime = Date()
+        
+        // Set actual training start time if this is the first pose
+        if currentPoseIndex == 0 && actualTrainingStartTime == nil {
+            actualTrainingStartTime = Date()
+        }
         
         countdownTimer?.invalidate()
+        
+        // Start session timer if not already running (for first pose)
+        if sessionTimer == nil && !isPaused {
+            startSessionTimer()
+        }
+        
+        print("⭐️ Mulai countdown untuk pose A\(currentPoseIndex + 1)")
         
         countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             
             self.positioningCountdownValue -= 1
             
+            // Saat countdown = 1, SELALU ambil gambar pose untuk data rekap
+            if self.positioningCountdownValue == 1 {
+                if let frame = self.poseViewModel.currentFrame {
+                    print("📸 MENGAMBIL GAMBAR pose A\(self.currentPoseIndex + 1) saat countdown = 1")
+                    self.poseUserImages[self.currentPoseIndex] = frame
+                    
+                    // Save joint positions - convert to String keys
+                    if let joints = self.convertJointPositionsToStringKeys(self.poseViewModel.detectedBodyParts) {
+                        print("📊 Menyimpan \(joints.count) joint positions untuk pose A\(self.currentPoseIndex + 1)")
+                        self.poseJointPositions[self.currentPoseIndex] = joints
+                        
+                        // Tandai pose sebagai benar jika user tidak membuat kesalahan selama countdown
+                        if !self.poseMadeError {
+                            print("✅ Pose A\(self.currentPoseIndex + 1) berhasil tanpa kesalahan, menandai sebagai benar")
+                            self.poseFirstAttemptSuccess[self.currentPoseIndex] = true
+                        } else {
+                            print("⚠️ Pose A\(self.currentPoseIndex + 1) memiliki kesalahan, tidak dihitung sebagai benar")
+                            self.poseFirstAttemptSuccess[self.currentPoseIndex] = false
+                        }
+                    } else {
+                        print("❌ Tidak dapat mengambil joint positions untuk pose A\(self.currentPoseIndex + 1)")
+                    }
+                } else {
+                    print("❌ Tidak dapat mengambil frame untuk pose A\(self.currentPoseIndex + 1)")
+                }
+            }
+            
             if self.positioningCountdownValue > 0 {
-                self.voiceFeedbackManager.speak("\(self.positioningCountdownValue)", interrupt: true)
+                if !self.isMuted {
+                    self.voiceFeedbackManager.speak("\(self.positioningCountdownValue)", interrupt: true)
+                }
             }
             
             if self.positioningCountdownValue <= 0 {
                 self.countdownTimer?.invalidate()
                 self.phase = .evaluating
-                self.voiceFeedbackManager.speak("Mulai!", interrupt: true)
+                
+                // Cek sekali lagi apakah data sudah tersimpan
+                if self.poseUserImages[self.currentPoseIndex] == nil {
+                    if let frame = self.poseViewModel.currentFrame {
+                        print("🔄 Mengambil cadangan gambar pose A\(self.currentPoseIndex + 1) saat countdown berakhir")
+                        self.poseUserImages[self.currentPoseIndex] = frame
+                        
+                        // Save joint positions
+                        if let joints = self.convertJointPositionsToStringKeys(self.poseViewModel.detectedBodyParts) {
+                            self.poseJointPositions[self.currentPoseIndex] = joints
+                            
+                            // Jika belum ada flag sukses, cek apakah tidak ada error dan set flag
+                            if self.poseFirstAttemptSuccess[self.currentPoseIndex] == nil {
+                                if !self.poseMadeError {
+                                    print("✅ Pose A\(self.currentPoseIndex + 1) berhasil pada backup, menandai sebagai benar")
+                                    self.poseFirstAttemptSuccess[self.currentPoseIndex] = true
+                                } else {
+                                    self.poseFirstAttemptSuccess[self.currentPoseIndex] = false
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    print("✅ Gambar untuk pose A\(self.currentPoseIndex + 1) sudah tersimpan sebelumnya")
+                }
+                
+                if !self.isMuted {
+                    self.voiceFeedbackManager.speak("Mulai!", interrupt: true)
+                }
             }
         }
     }
@@ -349,8 +692,34 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         phase = .positioning
         positioningCountdownValue = 3
         
-        if !isMuted {
-            voiceFeedbackManager.speak("Posisi salah, kembali ke dalam kotak", interrupt: true)
+        // Mark that an error occurred during countdown for this pose
+        poseMadeError = true
+        
+        print("🔴 User keluar dari posisi saat countdown pose A\(currentPoseIndex + 1), kembali ke positioning")
+        print("⚠️ Pose A\(currentPoseIndex + 1) ditandai sebagai TIDAK BENAR karena error saat countdown")
+        
+        // Capture frame showing the error with joint positions
+        if let frame = self.poseViewModel.currentFrame {
+            print("📸 Mengambil gambar error pose A\(self.currentPoseIndex + 1)")
+            // Tetap simpan gambar meskipun error
+            self.poseUserImages[self.currentPoseIndex] = frame
+            
+            // Save joint positions - convert to String keys
+            if let joints = self.convertJointPositionsToStringKeys(self.poseViewModel.detectedBodyParts) {
+                print("📊 Menyimpan \(joints.count) joint positions untuk pose error A\(self.currentPoseIndex + 1)")
+                self.poseJointPositions[self.currentPoseIndex] = joints
+                
+                // Jelas tandai pose sebagai tidak benar
+                self.poseFirstAttemptSuccess[self.currentPoseIndex] = false
+            }
+        } else {
+            print("❌ Tidak dapat mengambil frame error untuk pose A\(self.currentPoseIndex + 1)")
+            // Tetap tandai sebagai tidak benar
+            self.poseFirstAttemptSuccess[self.currentPoseIndex] = false
+        }
+        
+        if !self.isMuted {
+            self.voiceFeedbackManager.speak("Posisi salah, kembali ke dalam kotak", interrupt: true)
         }
     }
     
@@ -371,6 +740,8 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         holdProgress = 0.0
         countdownValue = 8
         lastCorrectionTime = .distantPast
+        // Reset flag hold failure untuk pose berikutnya (jika ada)
+        // poseHadHoldFailure[currentPoseIndex+1] = false // opsional, biarkan nil jika belum ada percobaan
     }
     
     /// Updates the display name of the current pose
@@ -427,7 +798,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
             
             // Resume countdown if in that phase
             if phase == .countdown {
-                startPositioningCountdown(resumingFromValue: positioningCountdownValue)
+                startPositioningCountdown()
             }
             
             // Voice announcement
@@ -437,33 +808,56 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         }
     }
     
-    /// Starts the countdown before beginning pose evaluation with option to resume from a specific value
-    private func startPositioningCountdown(resumingFromValue: Int = 3) {
-        phase = .countdown
-        positioningCountdownValue = resumingFromValue
+    /// Converts joint positions to String keys
+    private func convertJointPositionsToStringKeys(_ positions: [HumanBodyPoseObservation.JointName: CGPoint]) -> [String: CGPoint]? {
+        // Jika tidak ada data joint, return nil
+        guard !positions.isEmpty else {
+            print("❌ Tidak ada data joint positions yang tersedia")
+            return nil
+        }
         
-        // Start session timer when countdown begins
-        startSessionTimer()
+        var stringPositions: [String: CGPoint] = [:]
         
-        countdownTimer?.invalidate()
-        
-        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            
-            self.positioningCountdownValue -= 1
-            
-            if self.positioningCountdownValue > 0 && !self.isMuted {
-                self.voiceFeedbackManager.speak("\(self.positioningCountdownValue)", interrupt: true)
+        do {
+            for (joint, position) in positions {
+                // Konversi ke string berdasarkan nama joint
+                let jointNameString = jointNameToString(joint)
+                stringPositions[jointNameString] = position
             }
             
-            if self.positioningCountdownValue <= 0 {
-                self.countdownTimer?.invalidate()
-                self.phase = .evaluating
-                
-                if !self.isMuted {
-                    self.voiceFeedbackManager.speak("Mulai!", interrupt: true)
-                }
+            // Pastikan setidaknya beberapa joint penting ada
+            let requiredJoints = ["nose", "neck", "leftShoulder", "rightShoulder"]
+            let hasRequiredJoints = requiredJoints.allSatisfy { stringPositions[$0] != nil }
+            
+            if !hasRequiredJoints {
+                print("⚠️ Data joint tidak lengkap, beberapa joint penting tidak terdeteksi")
             }
+            
+            return stringPositions
+        } catch {
+            print("❌ Error saat konversi joint positions: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    /// Convert HumanBodyPoseObservation.JointName to String
+    private func jointNameToString(_ jointName: HumanBodyPoseObservation.JointName) -> String {
+        switch jointName {
+        case .nose: return "nose"
+        case .neck: return "neck"
+        case .leftShoulder: return "leftShoulder"
+        case .rightShoulder: return "rightShoulder"
+        case .leftElbow: return "leftElbow"
+        case .rightElbow: return "rightElbow"
+        case .leftWrist: return "leftWrist"
+        case .rightWrist: return "rightWrist"
+        case .leftHip: return "leftHip"
+        case .rightHip: return "rightHip"
+        case .leftKnee: return "leftKnee"
+        case .rightKnee: return "rightKnee"
+        case .leftAnkle: return "leftAnkle"
+        case .rightAnkle: return "rightAnkle"
+        default: return "unknown"
         }
     }
 
