@@ -96,6 +96,7 @@ struct RekapLatihanView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 15) {
                         ForEach(0..<totalPoses, id: \.self) { index in
+                            let isWrong = (trainingResult?.poseDetails[safe: index]?.isCompletedCorrectly == false)
                             Button(action: {
                                 selectedExercise = index
                             }) {
@@ -107,6 +108,10 @@ struct RekapLatihanView: View {
                                     .frame(width: 55, height: 55)
                                     .background(selectedExercise == index ? Color.white : Color.white.opacity(0.4))
                                     .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(isWrong ? Color.red : Color.clear, lineWidth: 4)
+                                    )
                             }
                         }
                     }

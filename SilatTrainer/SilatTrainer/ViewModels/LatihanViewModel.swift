@@ -354,7 +354,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         for index in 0..<poseData.count {
             let pose = poseData[index]
             let poseName = "A\(index + 1)"
-            let isCorrect = poseFirstAttemptSuccess[index] ?? false
+            let isCorrect = !(poseHadHoldFailure[index] ?? false)
             let timeToComplete = poseTimeToComplete[index] ?? 0.0
             
             // Ambil data gambar dan joint jika ada
