@@ -18,13 +18,14 @@ struct HomeView: View {
                 .resizable()
                 .frame(maxHeight: .infinity)
                 .scaleEffect(1.02)
+                .offset(y: -20)
                 .ignoresSafeArea()
             
             Image("person")
                 .resizable()
-                .frame(width: 490, height: 490)
+                .frame(width: 450, height: 450)
                 .padding()
-                .position(x: 200, y: 450)
+                .position(x: 200, y: 430)
             
             // Content overlay
             VStack(spacing: 0) {
@@ -42,13 +43,12 @@ struct HomeView: View {
                             
                             Image(systemName: "info")
                                 .font(.title2)
-                                .fontWeight(.bold)
                                 .foregroundColor(.black)
-                                
                         }
                     }
-                    .padding(.bottom, 40)
-                    .padding(.trailing, 50)
+                    .padding(.bottom, 20)
+                    .padding(.top, 20)
+                    .padding(.trailing, 35)
                 }
                 
        
@@ -78,45 +78,53 @@ struct HomeView: View {
                         .font(.title2)
                         .foregroundColor(.black)
                         .fontWeight(.medium)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 12)
                         .frame(maxWidth: .infinity)
                         .background(Color.white)
                         .cornerRadius(20)
                 }
                 .padding(.horizontal, 40)
-                .padding(.bottom, 20)
+                .padding(.bottom, 50)
                 
                 // Tab Bar
                 HStack {
                     Spacer()
                     
                     // Latihan Tab
-                    VStack {
-                        Image(systemName: "figure.martial.arts")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 30, height: 30)
-                        
-                        Text("Latihan")
-                            .font(.caption)
+                    Button(action: {
+                        navigate(.latihan)
+                    }) {
+                        VStack {
+                            Image(systemName: "figure.martial.arts")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 30, height: 30)
+                            
+                            Text("Latihan")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.yellow)
+                        .frame(maxWidth: .infinity)
                     }
-                    .foregroundColor(.yellow)
-                    .frame(maxWidth: .infinity)
                     
                     Spacer()
                     
                     // Ringkasan Tab
-                    VStack {
-                        Image(systemName: "star")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 30, height: 30)
-                        
-                        Text("Ringkasan")
-                            .font(.caption)
+                    Button(action: {
+                        navigate(.statistik)
+                    }) {
+                        VStack {
+                            Image(systemName: "star")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 30, height: 30)
+                            
+                            Text("Ringkasan")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity)
                     }
-                    .foregroundColor(.gray)
-                    .frame(maxWidth: .infinity)
                     
                     Spacer()
                 }

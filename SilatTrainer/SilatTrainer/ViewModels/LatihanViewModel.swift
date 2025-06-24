@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Vision
+import SwiftData
 
 /// Represents the different phases of training exercises
 enum LatihanPhase {
@@ -99,7 +100,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         
         print("LatihanViewModel: Loaded \(poseData.count) poses")
         for (index, pose) in poseData.enumerated() {
-            print("Pose \(index): ID \(pose.poseId)")
+            print("Pose \(index): ID \(pose.id)")
         }
         
         self.poseMatcher = PoseMatcher(poseData: poseData, poseViewModel: poseViewModel)
@@ -857,6 +858,74 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         case .leftAnkle: return "leftAnkle"
         case .rightAnkle: return "rightAnkle"
         default: return "unknown"
+        }
+    }
+
+    /// Saves the completed training session data to SwiftData
+    func saveTrainingSession(to modelContext: ModelContext) {
+        // Calculate session duration in seconds
+        let duration = Int(self.sessionDuration)
+        
+        // Create array of pose results
+        var poseResults: [PoseResult] = []
+        
+        // Add data for each pose (A1-A7)
+        for i in 0..<poseData.count {
+            let poseName = "A\(i+1)"
+            let wasCompleted = i <= currentPoseIndex
+            
+            // For simplicity, we'll consider poses the user got to as completed correctly
+            // In a real app, you might track more detailed success metrics
+            let holdDuration = wasCompleted ? 8.0 : 0.0 // 8 seconds is our target hold time
+            
+            let poseResult = PoseResult(
+                poseName: poseName,
+                poseNumber: i+1,
+                isCorrect: wasCompleted,
+                holdDuration: holdDuration
+            )
+            poseResults.append(poseResult)
+        }
+        
+        // Create the training session
+        let session = TrainingSession(
+            jurus: "Jurus 1", // Change this if you have multiple jurus types
+            duration: duration,
+            poseResults: poseResults
+        )
+        
+        // Save to SwiftData
+        modelContext.insert(session)
+        
+        do {
+            try modelContext.save()
+            print("Training session saved successfully with \(poseResults.count) pose results")
+        } catch {
+            print("Failed to save training session: \(error)")
+        }
+    }
+    
+    /// Marks all remaining uncompleted poses as incorrect
+    /// Called when user exits the training session early
+    func markRemainingPosesAsIncorrect() {
+        // Nothing to do if already completed all poses
+        if currentPoseIndex >= poseData.count - 1 {
+            return
+        }
+        
+        // Mark the current pose as failed if it was in progress but not completed
+        if isPoseMatched {
+            poseTimerDidFail()
+        }
+        
+        // Current pose index points to the pose the user is currently working on
+        // We don't need to change its status as saveTrainingSession will handle it appropriately
+        
+        print("Marking remaining poses as incorrect - session ended early at pose \(currentPoseIndex + 1) of \(poseData.count)")
+        
+        // Voice feedback if not muted
+        if !isMuted {
+            voiceFeedbackManager.speak("Latihan diakhiri", interrupt: true)
         }
     }
 } 

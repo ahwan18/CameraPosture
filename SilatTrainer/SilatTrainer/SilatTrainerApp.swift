@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct SilatTrainerApp: App {
@@ -38,9 +39,12 @@ struct SilatTrainerApp: App {
                         RekapLatihanView(resetToHome: {
                             path = NavigationPath()
                         })
+                    case .statistik:
+                        StatistikView(navigate: { path.append($0) })
                     }
                 }
             }
+            .modelContainer(for: [TrainingSession.self, PoseResult.self])
         }
     }
 }
