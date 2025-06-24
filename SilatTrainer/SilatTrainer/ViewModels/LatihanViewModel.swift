@@ -365,21 +365,18 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
             let poseName = "A\(index + 1)"
             let isCorrect = !(poseHadHoldFailure[index] ?? false)
             let timeToComplete = poseTimeToComplete[index] ?? 0.0
-            
             // Ambil data gambar dan joint jika ada
             let userImage: UIImage? = isCorrect ? poseUserImages[index] : poseFailureImages[index] ?? poseUserImages[index]
             let jointPositions: [String: CGPoint]? = isCorrect ? poseJointPositions[index] : poseFailureJoints[index] ?? poseJointPositions[index]
-            
             // Ambil joint ideal dari poseData.json
-            let idealJointPositions: [String: CGPoint] = pose.joints.mapValues { CGPoint(x: $0.x, y: $0.y) }
-            
+            let idealJointPositions: [String: CGPoint] = pose.keyPoints
             // Gunakan placeholder image jika tidak ada gambar
             // TODO: Tambahkan idealPoseImage jika tersedia
             let idealImage: UIImage? = nil
-            
+
             let poseDetail = PoseDetail(
                 poseName: poseName,
-                poseId: pose.poseId,
+                poseId: pose.id,
                 isCompletedCorrectly: isCorrect,
                 timeToComplete: timeToComplete,
                 userPoseImage: userImage,
@@ -387,7 +384,6 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
                 jointPositions: jointPositions,
                 idealJointPositions: idealJointPositions
             )
-            
             poseDetails.append(poseDetail)
         }
         
