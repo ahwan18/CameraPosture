@@ -40,7 +40,7 @@ struct SilatTrainerApp: App {
                             path = NavigationPath()
                         })
                     case .statistik:
-                        StatistikView(navigate: { path.append($0) })
+                        StatistikView(/*navigate: { path.append($0) }*/)
                     }
                 }
             }
