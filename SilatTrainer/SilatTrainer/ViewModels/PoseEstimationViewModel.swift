@@ -26,6 +26,9 @@ class PoseEstimationViewModel: NSObject, AVCaptureVideoDataOutputSampleBufferDel
     /// List of connections between body joints to create a skeleton visualization
     @Published var bodyConnections: [BodyConnection] = []
     
+    /// Current camera frame as UIImage for capture purposes
+    private(set) var currentFrame: UIImage?
+    
     override init() {
         super.init()
         setupBodyConnections()
@@ -64,6 +67,9 @@ class PoseEstimationViewModel: NSObject, AVCaptureVideoDataOutputSampleBufferDel
     ///   - sampleBuffer: The captured video frame
     ///   - connection: The connection through which the video was received
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        // Convert sample buffer to UIImage for potential capture
+        currentFrame = convertSampleBufferToUIImage(sampleBuffer)
+        
         Task {
             if let detectedPoints = await processFrame(sampleBuffer) {
                 DispatchQueue.main.async {
@@ -71,6 +77,19 @@ class PoseEstimationViewModel: NSObject, AVCaptureVideoDataOutputSampleBufferDel
                 }
             }
         }
+    }
+    
+    /// Convert CMSampleBuffer to UIImage
+    /// - Parameter sampleBuffer: The camera frame buffer
+    /// - Returns: UIImage representation of the frame
+    private func convertSampleBufferToUIImage(_ sampleBuffer: CMSampleBuffer) -> UIImage? {
+        guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
+        
+        let ciImage = CIImage(cvPixelBuffer: imageBuffer)
+        let context = CIContext()
+        
+        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 
     /// Processes a camera frame to detect human body pose
