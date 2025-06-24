@@ -91,32 +91,40 @@ struct HomeView: View {
                     Spacer()
                     
                     // Latihan Tab
-                    VStack {
-                        Image(systemName: "figure.martial.arts")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 30, height: 30)
-                        
-                        Text("Latihan")
-                            .font(.caption)
+                    Button(action: {
+                        navigate(.latihan)
+                    }) {
+                        VStack {
+                            Image(systemName: "figure.martial.arts")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 30, height: 30)
+                            
+                            Text("Latihan")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.yellow)
+                        .frame(maxWidth: .infinity)
                     }
-                    .foregroundColor(.yellow)
-                    .frame(maxWidth: .infinity)
                     
                     Spacer()
                     
                     // Ringkasan Tab
-                    VStack {
-                        Image(systemName: "star")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 30, height: 30)
-                        
-                        Text("Ringkasan")
-                            .font(.caption)
+                    Button(action: {
+                        navigate(.statistik)
+                    }) {
+                        VStack {
+                            Image(systemName: "star")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 30, height: 30)
+                            
+                            Text("Ringkasan")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity)
                     }
-                    .foregroundColor(.gray)
-                    .frame(maxWidth: .infinity)
                     
                     Spacer()
                 }

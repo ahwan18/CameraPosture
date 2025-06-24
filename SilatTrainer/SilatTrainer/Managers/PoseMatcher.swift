@@ -4,77 +4,58 @@ import Vision
 
 class PoseMatcher: PoseMatcherProtocol {
     private let poseData: [PoseData]
-    private weak var poseViewModel: PoseEstimationViewModel?
+    private let poseViewModel: PoseEstimationViewModel
+    private let poseMatchThreshold: Double = 0.10 // Acceptable distance threshold for pose matching
     
-    private let poseMatchThreshold: Double = 0.12
-
     init(poseData: [PoseData], poseViewModel: PoseEstimationViewModel) {
         self.poseData = poseData
         self.poseViewModel = poseViewModel
     }
 
+    /// Checks if the detected pose matches the target pose at the specified index
+    /// - Parameter currentPoseIndex: The index of the current target pose to check against
+    /// - Returns: Boolean indicating if the poses match within the defined threshold
     func checkPoseMatch(currentPoseIndex: Int) -> Bool {
-        guard let poseViewModel = self.poseViewModel, currentPoseIndex < poseData.count else { return false }
+        guard currentPoseIndex < poseData.count else { return false }
         
         let targetPose = poseData[currentPoseIndex]
+        let userBodyDimensions = calculateBodyDimensions()
+        let targetReferences = getTargetPoseReferences(currentPoseIndex: currentPoseIndex)
+        
         var totalDistance: Double = 0
         var totalWeight: Double = 0
         var validJoints = 0
-        
-        let userDimensions = calculateBodyDimensions()
-        let targetReferences = getTargetPoseReferences(currentPoseIndex: currentPoseIndex)
-        
         var worstJointDistance: Double = 0
-        var criticalJointsMismatched = false
+        var criticalJointsMismatched: Bool = false
         
-        let criticalJoints: [HumanBodyPoseObservation.JointName] = [
-            .leftShoulder, .rightShoulder,
-            .leftElbow, .rightElbow,
-            .leftWrist, .rightWrist
-        ]
-        
-        let criticalJointThreshold: Double = 0.15
-        
+        // Compare each detected joint with the corresponding target joint
         for (jointName, detectedPoint) in poseViewModel.detectedBodyParts {
             let jointKey = PoseMatcher.jointNameToKey(jointName)
+            let jointImportance = getJointImportance(jointName: jointName, targetPose: targetPose)
             
-            if let targetJoint = targetPose.joints[jointKey] {
-                let targetPoint = CGPoint(x: targetJoint.x, y: targetJoint.y)
+            // If we have a target point for this joint, calculate the distance
+            if let targetJoint = targetPose.keyPoints[jointKey] {
+                // Transform target point based on user's dimensions
+                let transformedTargetPoint = transformTargetPoint(targetJoint, userDimensions: userBodyDimensions, targetReferences: targetReferences, currentPoseIndex: currentPoseIndex)
                 
-                let adjustedTargetPoint = userDimensions.valid ?
-                    transformTargetPoint(targetPoint, userDimensions: userDimensions, targetReferences: targetReferences, currentPoseIndex: currentPoseIndex) : targetPoint
-                
-                let dist = distance(detectedPoint, adjustedTargetPoint)
-                
-                if dist > worstJointDistance && getJointImportance(jointName: jointName, targetPose: targetPose) > 0.7 {
-                    worstJointDistance = dist
-                }
-                
-                if criticalJoints.contains(jointName) && dist > criticalJointThreshold {
-                    if getJointImportance(jointName: jointName, targetPose: targetPose) > 0.7 {
-                        criticalJointsMismatched = true
-                    }
-                }
-                
-                var weightedDist = dist
-                let jointImportance = getJointImportance(jointName: jointName, targetPose: targetPose)
-                
-                if jointName == .leftWrist || jointName == .rightWrist {
-                    weightedDist *= 1.3 * jointImportance
-                } else if jointName == .leftElbow || jointName == .rightElbow {
-                    weightedDist *= 1.2 * jointImportance
-                } else {
-                    weightedDist *= jointImportance
-                }
-                
-                totalDistance += weightedDist
+                let jointDistance = distance(detectedPoint, transformedTargetPoint)
+                totalDistance += jointDistance * jointImportance
                 totalWeight += jointImportance
                 validJoints += 1
+                
+                // Track the worst joint distance for additional threshold check
+                if jointDistance > worstJointDistance {
+                    worstJointDistance = jointDistance
+                }
+                
+                // Critical joints with higher precision requirements
+                if (jointName == .leftWrist || jointName == .rightWrist) && jointDistance > (poseMatchThreshold * 1.5) {
+                    criticalJointsMismatched = true
+                }
             }
         }
         
-        guard validJoints > 0 else { return false }
-        
+        // Calculate weighted average distance
         let averageDistance = (totalWeight > 0) ? totalDistance / totalWeight : totalDistance / Double(validJoints)
         
         var totalAngleDifference: Double = 0
@@ -99,12 +80,14 @@ class PoseMatcher: PoseMatcherProtocol {
             let skipAngleCheck = areJointsTooClose(joint1Key, joint2Key, targetPose: targetPose) || areJointsTooClose(joint2Key, joint3Key, targetPose: targetPose)
             if skipAngleCheck { continue }
             
-            let targetJoint1 = targetPose.joints[joint1Key].map { CGPoint(x: $0.x, y: $0.y) }
-            let targetJoint2 = targetPose.joints[joint2Key].map { CGPoint(x: $0.x, y: $0.y) }
-            let targetJoint3 = targetPose.joints[joint3Key].map { CGPoint(x: $0.x, y: $0.y) }
+            // Get target joints as CGPoints
+            let targetJoint1 = targetPose.keyPoints[joint1Key]
+            let targetJoint2 = targetPose.keyPoints[joint2Key]
+            let targetJoint3 = targetPose.keyPoints[joint3Key]
             
             if let userAngle = calculateAngle(joint1: userJoint1, joint2: userJoint2, joint3: userJoint3),
-               let targetAngle = calculateAngle(joint1: targetJoint1, joint2: targetJoint2, joint3: targetJoint3) {
+               let tj1 = targetJoint1, let tj2 = targetJoint2, let tj3 = targetJoint3,
+               let targetAngle = calculateAngle(joint1: tj1, joint2: tj2, joint3: tj3) {
                 let angleDiff = abs(userAngle - targetAngle)
                 let normalizedDiff = angleDiff / .pi
                 totalAngleDifference += normalizedDiff
@@ -133,8 +116,7 @@ class PoseMatcher: PoseMatcherProtocol {
     }
     
     private func calculateBodyDimensions() -> (height: Double, center: CGPoint, width: Double, valid: Bool) {
-        guard let poseViewModel = self.poseViewModel,
-              let neck = poseViewModel.detectedBodyParts[.neck],
+        guard let neck = poseViewModel.detectedBodyParts[.neck],
               let leftAnkle = poseViewModel.detectedBodyParts[.leftAnkle] ?? poseViewModel.detectedBodyParts[.rightAnkle] else {
             return (1.0, CGPoint(x: 0.5, y: 0.5), 0.3, false)
         }
@@ -170,24 +152,24 @@ class PoseMatcher: PoseMatcherProtocol {
         
         var targetNeckY: CGFloat = 0.3, targetAnkleY: CGFloat = 0.9, targetCenter = CGPoint(x: 0.5, y: 0.5)
         
-        if let neckJoint = targetPose.joints["neck"] { targetNeckY = neckJoint.y }
-        if let leftAnkle = targetPose.joints["leftAnkle"] ?? targetPose.joints["rightAnkle"] { targetAnkleY = leftAnkle.y }
+        if let neckJoint = targetPose.keyPoints["neck"] { targetNeckY = neckJoint.y }
+        if let leftAnkle = targetPose.keyPoints["leftAnkle"] ?? targetPose.keyPoints["rightAnkle"] { targetAnkleY = leftAnkle.y }
         
         let targetHeight = abs(targetAnkleY - targetNeckY)
         
-        if let leftHip = targetPose.joints["leftHip"], let rightHip = targetPose.joints["rightHip"] {
+        if let leftHip = targetPose.keyPoints["leftHip"], let rightHip = targetPose.keyPoints["rightHip"] {
             targetCenter.x = (leftHip.x + rightHip.x) / 2
             targetCenter.y = (leftHip.y + rightHip.y) / 2
-        } else if let singleHip = targetPose.joints["leftHip"] ?? targetPose.joints["rightHip"] {
+        } else if let singleHip = targetPose.keyPoints["leftHip"] ?? targetPose.keyPoints["rightHip"] {
             targetCenter.x = singleHip.x
             targetCenter.y = singleHip.y
         }
         
         var targetWidth: Double = 0.3
-        if let leftShoulder = targetPose.joints["leftShoulder"], let rightShoulder = targetPose.joints["rightShoulder"] {
+        if let leftShoulder = targetPose.keyPoints["leftShoulder"], let rightShoulder = targetPose.keyPoints["rightShoulder"] {
             targetWidth = abs(leftShoulder.x - rightShoulder.x)
         }
-        if let leftHip = targetPose.joints["leftHip"], let rightHip = targetPose.joints["rightHip"] {
+        if let leftHip = targetPose.keyPoints["leftHip"], let rightHip = targetPose.keyPoints["rightHip"] {
             targetWidth = max(targetWidth, abs(leftHip.x - rightHip.x))
         }
         
@@ -231,8 +213,8 @@ class PoseMatcher: PoseMatcherProtocol {
     }
     
     private func calculateTargetJointDistance(_ joint1Key: String, _ joint2Key: String, targetPose: PoseData) -> Double? {
-        guard let joint1 = targetPose.joints[joint1Key], let joint2 = targetPose.joints[joint2Key] else { return nil }
-        return distance(CGPoint(x: joint1.x, y: joint1.y), CGPoint(x: joint2.x, y: joint2.y))
+        guard let joint1 = targetPose.keyPoints[joint1Key], let joint2 = targetPose.keyPoints[joint2Key] else { return nil }
+        return distance(joint1, joint2)
     }
     
     private func areJointsTooClose(_ joint1Key: String, _ joint2Key: String, targetPose: PoseData) -> Bool {
@@ -248,7 +230,7 @@ class PoseMatcher: PoseMatcherProtocol {
         if jointName == .leftShoulder || jointName == .rightShoulder, areJointsTooClose("leftShoulder", "rightShoulder", targetPose: targetPose) { importance = 0.5 }
         if jointName == .leftWrist || jointName == .rightWrist, areJointsTooClose("leftWrist", "rightWrist", targetPose: targetPose) { importance = 0.5 }
         
-        if targetPose.poseId == "a3" && (jointName == .leftHip || jointName == .rightHip) {
+        if targetPose.id == "a3" && (jointName == .leftHip || jointName == .rightHip) {
             importance = 0.4
         }
         return importance

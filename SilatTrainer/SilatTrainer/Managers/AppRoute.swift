@@ -14,4 +14,5 @@ enum AppRoute: Hashable {
     case caraMenggunakan
     case finish
     case rekap
+    case statistik
 }

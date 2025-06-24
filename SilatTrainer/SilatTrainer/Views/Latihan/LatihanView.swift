@@ -1,6 +1,7 @@
 import SwiftUI
 import Vision
 import UIKit
+import SwiftData
 
 /// `LatihanView` is the main training view that handles pose detection, matching, and user guidance
 /// This view integrates camera feed, pose overlay, and interactive training elements
@@ -14,8 +15,16 @@ struct LatihanView: View {
     @StateObject private var cameraVM = CameraViewModel()          // Handles camera access and configuration
     @StateObject private var poseViewModel: PoseEstimationViewModel // Processes camera feed for pose detection
     
+
+    // SwiftData model context
+    @Environment(\.modelContext) private var modelContext
+    
+    // Alert state
+    @State private var showExitConfirmation = false
+
     // State for showing the tutorial overlay
     @State private var showTutorial = false
+
     
     /// Initializes the view with navigation handlers and sets up the view models
     /// - Parameters:
@@ -74,7 +83,8 @@ struct LatihanView: View {
                     
                     HStack {
                         Button(action: {
-                            close()
+                            // Show confirmation alert instead of closing immediately
+                            showExitConfirmation = true
                         }) {
                             HStack(spacing: 5) {
                                 Image(systemName: "chevron.left")
@@ -96,8 +106,10 @@ struct LatihanView: View {
                                 .shadow(color: .white, radius: 2, x: 0, y: 2)
                         }
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 20)
                     
+                    Spacer()
+  
                     if latihanVM.phase == .evaluating {
                         // Session timer and pose name in horizontal layout with matching styles
                         HStack {
@@ -214,6 +226,27 @@ struct LatihanView: View {
                                 }
                             }
                         }
+
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    
+                    // Button to finish or skip the current training
+                    Button(action: {
+                        // Save training data before navigating
+                        latihanVM.saveTrainingSession(to: modelContext)
+                        navigate(.finish)
+                    }) {
+                        Text(latihanVM.showCompletionMessage ? "Selesai" : "")
+ 
+                    }
+                    .padding(.top, 10)
+                } else {
+                    // Timer display for positioning and countdown phases
+                    VStack {
+                        HStack {
+                            Spacer()
+
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
                         //                    .background(
@@ -226,7 +259,7 @@ struct LatihanView: View {
                             navigate(.finish)
                         }) {
                             Text(latihanVM.showCompletionMessage ? "Selesai" : "")
-                            
+
                         }
                         .padding(.top, 10)
                     } else {
@@ -297,6 +330,9 @@ struct LatihanView: View {
             // Revert screen timeout settings and clean up resources
             UIApplication.shared.isIdleTimerDisabled = false
             latihanVM.cleanup()
+            
+            // Save training data when the view is disappearing
+            latihanVM.saveTrainingSession(to: modelContext)
         }
         .task {
             // Initialize camera when view appears
@@ -306,6 +342,17 @@ struct LatihanView: View {
         .onChange(of: poseViewModel.detectedBodyParts) { _, _ in
             // Update training state whenever new body parts are detected
             latihanVM.update()
+        }
+        .alert("Akhiri Latihan?", isPresented: $showExitConfirmation) {
+            Button("Batal", role: .cancel) { }
+            Button("Akhiri", role: .destructive) {
+                // Mark remaining poses as incorrect before closing
+                latihanVM.markRemainingPosesAsIncorrect()
+                latihanVM.saveTrainingSession(to: modelContext)
+                close()
+            }
+        } message: {
+            Text("Jika kamu keluar sekarang, sesi latihan akan diakhiri dan semua gerakan yang belum selesai akan dianggap salah.")
         }
     }
 }
