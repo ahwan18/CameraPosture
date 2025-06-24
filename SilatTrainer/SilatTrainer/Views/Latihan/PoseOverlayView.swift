@@ -134,11 +134,11 @@ struct PoseOverlayView: View {
         var targetAnkleY: CGFloat = 0.9 // Default if not found
         var targetCenter = CGPoint(x: 0.5, y: 0.5) // Default center
         
-        if let neckJoint = targetPose.joints["neck"] {
+        if let neckJoint = targetPose.keyPoints["neck"] {
             targetNeckY = neckJoint.y
         }
         
-        if let leftAnkle = targetPose.joints["leftAnkle"] ?? targetPose.joints["rightAnkle"] {
+        if let leftAnkle = targetPose.keyPoints["leftAnkle"] ?? targetPose.keyPoints["rightAnkle"] {
             targetAnkleY = leftAnkle.y
         }
         
@@ -146,25 +146,25 @@ struct PoseOverlayView: View {
         let targetHeight = abs(targetAnkleY - targetNeckY)
         
         // Calculate center of target pose
-        if let leftHip = targetPose.joints["leftHip"], let rightHip = targetPose.joints["rightHip"] {
+        if let leftHip = targetPose.keyPoints["leftHip"], let rightHip = targetPose.keyPoints["rightHip"] {
             targetCenter.x = (leftHip.x + rightHip.x) / 2
             targetCenter.y = (leftHip.y + rightHip.y) / 2
-        } else if let singleHip = targetPose.joints["leftHip"] ?? targetPose.joints["rightHip"] {
+        } else if let singleHip = targetPose.keyPoints["leftHip"] ?? targetPose.keyPoints["rightHip"] {
             targetCenter.x = singleHip.x
             targetCenter.y = singleHip.y
         }
         
         // Calculate target width
         var targetWidth: CGFloat = 0.3 // Default if not found
-        if let leftShoulder = targetPose.joints["leftShoulder"],
-            let rightShoulder = targetPose.joints["rightShoulder"] {
+        if let leftShoulder = targetPose.keyPoints["leftShoulder"],
+            let rightShoulder = targetPose.keyPoints["rightShoulder"] {
             let shoulderWidth = abs(leftShoulder.x - rightShoulder.x)
             targetWidth = shoulderWidth
         }
         
         // Also consider hip width for target
-        if let leftHip = targetPose.joints["leftHip"],
-           let rightHip = targetPose.joints["rightHip"] {
+        if let leftHip = targetPose.keyPoints["leftHip"],
+           let rightHip = targetPose.keyPoints["rightHip"] {
             let hipWidth = abs(leftHip.x - rightHip.x)
             targetWidth = max(targetWidth, hipWidth)
         }
@@ -204,9 +204,9 @@ struct PoseOverlayView: View {
         
         var targetBodyParts: [HumanBodyPoseObservation.JointName: CGPoint] = [:]
         
-        for (jointKey, jointCoordinate) in targetPose.joints {
+        for (jointKey, jointCoordinate) in targetPose.keyPoints {
             if let jointName = keyToJointName(jointKey) {
-                targetBodyParts[jointName] = CGPoint(x: jointCoordinate.x, y: jointCoordinate.y)
+                targetBodyParts[jointName] = jointCoordinate
             }
         }
         
@@ -229,9 +229,9 @@ struct PoseOverlayView: View {
         let toKey = jointNameToKey(connection.to)
 
         // Periksa kesalahan untuk sendi 'from'
-        if let targetFromJoint = targetPose.joints[fromKey] {
-            let originalTargetFrom = CGPoint(x: targetFromJoint.x, y: targetFromJoint.y)
-            let adjustedTargetFrom = userBodyDimensions.valid ? transformTargetPoint(originalTargetFrom, userBodyDimensions: userBodyDimensions) : originalTargetFrom
+        if let targetFromJoint = targetPose.keyPoints[fromKey] {
+            let originalTargetFrom = targetFromJoint
+            let adjustedTargetFrom = transformTargetPoint(originalTargetFrom, userBodyDimensions: userBodyDimensions)
             let dx = adjustedTargetFrom.x - fromPoint.x
             let dy = adjustedTargetFrom.y - fromPoint.y
             if sqrt(dx * dx + dy * dy) > 0.15 {
@@ -240,9 +240,9 @@ struct PoseOverlayView: View {
         }
 
         // Periksa kesalahan untuk sendi 'to'
-        if let targetToJoint = targetPose.joints[toKey] {
-            let originalTargetTo = CGPoint(x: targetToJoint.x, y: targetToJoint.y)
-            let adjustedTargetTo = userBodyDimensions.valid ? transformTargetPoint(originalTargetTo, userBodyDimensions: userBodyDimensions) : originalTargetTo
+        if let targetToJoint = targetPose.keyPoints[toKey] {
+            let originalTargetTo = targetToJoint
+            let adjustedTargetTo = transformTargetPoint(originalTargetTo, userBodyDimensions: userBodyDimensions)
             let dx = adjustedTargetTo.x - toPoint.x
             let dy = adjustedTargetTo.y - toPoint.y
             if sqrt(dx * dx + dy * dy) > 0.15 {
@@ -266,9 +266,8 @@ struct PoseOverlayView: View {
         let userBodyDimensions = calculateBodyDimensions()
         let jointKey = jointNameToKey(jointName)
 
-        if let targetJoint = targetPose.joints[jointKey] {
-            let originalTarget = CGPoint(x: targetJoint.x, y: targetJoint.y)
-            let adjustedTarget = userBodyDimensions.valid ? transformTargetPoint(originalTarget, userBodyDimensions: userBodyDimensions) : originalTarget
+        if let targetJoint = targetPose.keyPoints[jointKey] {
+            let adjustedTarget = transformTargetPoint(targetJoint, userBodyDimensions: userBodyDimensions)
             let dx = adjustedTarget.x - currentPoint.x
             let dy = adjustedTarget.y - currentPoint.y
             
@@ -362,10 +361,8 @@ struct PoseOverlayView: View {
                            let toPoint = targetBodyParts[connection.to] {
                             Path { path in
                                 // Transform target points to match user's proportions
-                                let adjustedFromPoint = userBodyDimensions.valid ?
-                                transformTargetPoint(fromPoint, userBodyDimensions: userBodyDimensions) : fromPoint
-                                let adjustedToPoint = userBodyDimensions.valid ?
-                                transformTargetPoint(toPoint, userBodyDimensions: userBodyDimensions) : toPoint
+                                let adjustedFromPoint = transformTargetPoint(fromPoint, userBodyDimensions: userBodyDimensions)
+                                let adjustedToPoint = transformTargetPoint(toPoint, userBodyDimensions: userBodyDimensions)
                                 
                                 // Mengonversi koordinat titik ke koordinat tampilan
                                 let fromPointInView = CGPoint(
@@ -388,12 +385,10 @@ struct PoseOverlayView: View {
                 
                 // Draw target pose joints in semi-transparent blue with adaptive scaling
                 if let targetPose = targetPose {
-                    ForEach(Array(targetPose.joints.keys), id: \.self) { jointKey in
-                        if let joint = targetPose.joints[jointKey], let jointName = keyToJointName(jointKey) {
+                    ForEach(Array(targetPose.keyPoints.keys), id: \.self) { jointKey in
+                        if let joint = targetPose.keyPoints[jointKey], let jointName = keyToJointName(jointKey) {
                             // Transform target point to match user's proportions
-                            let originalPoint = CGPoint(x: joint.x, y: joint.y)
-                            let adjustedPoint = userBodyDimensions.valid ?
-                            transformTargetPoint(originalPoint, userBodyDimensions: userBodyDimensions) : originalPoint
+                            let adjustedPoint = transformTargetPoint(joint, userBodyDimensions: userBodyDimensions)
                             
                             let targetPoint = CGPoint(
                                 x: adjustedPoint.x * geometry.size.width,
@@ -441,33 +436,6 @@ struct PoseOverlayView: View {
                     }
                 }
                 
-                // 3. Menggambar titik-titik sendi pada tampilan (user's current pose)
-                ForEach(Array(bodyParts.keys), id: \.self) { jointName in
-                    if let point = bodyParts[jointName] {
-                        // Panggil helper function untuk mendapatkan warna titik
-                        let color = jointColor(for: jointName)
-                        
-                        // Mengonversi koordinat titik sendi ke koordinat tampilan
-                        let pointInView = CGPoint(
-                            x: point.x * geometry.size.width,
-                            y: point.y * geometry.size.height
-                        )
-                        
-                        // Membuat lingkaran dengan warna dinamis untuk setiap titik sendi
-                        Circle()
-                            .fill(color) // Gunakan warna dinamis di sini
-                            .frame(width: 10, height: 10)
-                            .position(pointInView)
-                            .overlay(
-                                // Tambahkan outline agar lebih terlihat
-                                Circle()
-                                    .stroke(color, lineWidth: 2)
-                                    .frame(width: 12, height: 12)
-                                    .position(pointInView)
-                            )
-                    }
-                }
-                
                 // Draw guide arrows
                 if showGuideArrows, let targetPose = targetPose {
                     ForEach(Array(bodyParts.keys), id: \.self) { jointName in
@@ -475,11 +443,9 @@ struct PoseOverlayView: View {
                             // Convert jointName to string key
                             let jointKey = jointNameToKey(jointName)
                             
-                            if let targetJoint = targetPose.joints[jointKey] {
+                            if let targetJoint = targetPose.keyPoints[jointKey] {
                                 // Apply adaptive scaling to target point (these are normalized coordinates)
-                                let originalTargetPoint = CGPoint(x: targetJoint.x, y: targetJoint.y)
-                                let adjustedTargetPoint = userBodyDimensions.valid ?
-                                transformTargetPoint(originalTargetPoint, userBodyDimensions: userBodyDimensions) : originalTargetPoint
+                                let adjustedTargetPoint = transformTargetPoint(targetJoint, userBodyDimensions: userBodyDimensions)
                                 
                                 // --- PERUBAHAN UTAMA DI SINI ---
                                 // 1. Hitung jarak dalam dunia normalisasi (0.0 - 1.0)
@@ -548,6 +514,17 @@ struct PoseOverlayView: View {
                 }
             }
         }
+    }
+    
+    /// Maps a normalized joint point to screen coordinates with reference scaling
+    private func mapNormalizedJointToScreen(jointPoint: CGPoint, poseReferences: (scale: CGFloat, referenceMid: CGPoint, height: CGFloat), geometry: GeometryProxy) -> CGPoint {
+        let normalizedX = jointPoint.x
+        let normalizedY = jointPoint.y
+        
+        let screenX = poseReferences.referenceMid.x + (normalizedX - 0.5) * geometry.size.width * poseReferences.scale
+        let screenY = poseReferences.referenceMid.y + (normalizedY - 0.5) * geometry.size.height * poseReferences.scale
+        
+        return CGPoint(x: screenX, y: screenY)
     }
 }
 

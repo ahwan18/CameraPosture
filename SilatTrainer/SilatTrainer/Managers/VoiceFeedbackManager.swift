@@ -104,8 +104,8 @@ class VoiceFeedbackManager: VoiceFeedbackProtocol {
 
         for (jointName, detectedPoint) in detectedBodyParts {
             let jointKey = PoseMatcher.jointNameToKey(jointName)
-            if let targetJoint = currentTargetPose.joints[jointKey] {
-                let dist = distance(detectedPoint, CGPoint(x: targetJoint.x, y: targetJoint.y))
+            if let targetJoint = currentTargetPose.keyPoints[jointKey] {
+                let dist = distance(detectedPoint, targetJoint)
                 if dist > maxDistance {
                     maxDistance = dist
                     worstJoint = jointName
@@ -114,7 +114,7 @@ class VoiceFeedbackManager: VoiceFeedbackProtocol {
         }
         
         if let joint = worstJoint {
-            if let targetJoint = currentTargetPose.joints[PoseMatcher.jointNameToKey(joint)], let currentPoint = detectedBodyParts[joint] {
+            if let targetJoint = currentTargetPose.keyPoints[PoseMatcher.jointNameToKey(joint)], let currentPoint = detectedBodyParts[joint] {
                 var instruction = jointNameToIndonesian(joint)
                 if currentPoint.y > targetJoint.y + 0.05 {
                     instruction += " kurang naik"

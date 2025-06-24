@@ -35,9 +35,9 @@ class PoseLoader: PoseServiceProtocol {
         
         for (jointName, detectedPoint) in detectedPose {
             let jointNameString = String(describing: jointName)
-            if let referenceJoint = referencePose.joints[jointNameString] {
-                let dx = detectedPoint.x - referenceJoint.x
-                let dy = detectedPoint.y - referenceJoint.y
+            if let referencePoint = referencePose.keyPoints[jointNameString] {
+                let dx = detectedPoint.x - referencePoint.x
+                let dy = detectedPoint.y - referencePoint.y
                 let distance = sqrt(dx*dx + dy*dy)
                 totalDistance += distance
                 matchedJointCount += 1
@@ -62,9 +62,9 @@ class PoseLoader: PoseServiceProtocol {
         
         for (jointName, detectedPoint) in detectedPose {
             let jointNameString = String(describing: jointName)
-            if let referenceJoint = referencePose.joints[jointNameString] {
-                let dx = detectedPoint.x - referenceJoint.x
-                let dy = detectedPoint.y - referenceJoint.y
+            if let referencePoint = referencePose.keyPoints[jointNameString] {
+                let dx = detectedPoint.x - referencePoint.x
+                let dy = detectedPoint.y - referencePoint.y
                 let distance = sqrt(dx*dx + dy*dy)
                 
                 if distance > threshold {

@@ -85,13 +85,13 @@ class TrainingSessionManager: TrainingSessionProtocol {
         var feedbackMessage = ""
         if score > 0.85 {
             feedbackMessage = "Excellent form!"
-            voiceService.provideFeedback(similarity: score, for: pose.poseId)
+            voiceService.provideFeedback(similarity: score, for: pose.id)
         } else {
-            voiceService.provideJointCorrection(for: jointNames, in: pose.poseId)
+            voiceService.provideJointCorrection(for: jointNames, in: pose.id)
         }
         
         // Record this attempt
-        recordAttempt(poseId: pose.poseId, score: score)
+        recordAttempt(poseId: pose.id, score: score)
         
         return (score, feedbackMessage)
     }
