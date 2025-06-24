@@ -16,7 +16,7 @@ struct LatihanView: View {
     
     // State for showing the tutorial overlay
     @State private var showTutorial = false
-
+    
     /// Initializes the view with navigation handlers and sets up the view models
     /// - Parameters:
     ///   - navigate: Closure for navigating to other app routes
@@ -69,32 +69,34 @@ struct LatihanView: View {
             
             VStack {
                 // UI changes based on the current training phase
-                if latihanVM.phase == .evaluating {
-                    // Top navigation bar with back button and timer
-                    HStack {
-                        Button(action: {
-                            close()
-                        }) {
-                            HStack(spacing: 5) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 24, weight: .semibold))
-                                Text("Kembali")
-                                    .font(.system(size: 24, weight: .semibold))
-                            }
-                            .foregroundColor(.yellow)
-                            .shadow(color: .black, radius: 2, x: 0, y: 2)
+                
+                HStack {
+                    Button(action: {
+                        close()
+                    }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 24, weight: .semibold))
+                            Text("Kembali")
+                                .font(.system(size: 24, weight: .semibold))
                         }
-                        
-                        Spacer()
-                        
-                        // Title on the right
+                        .foregroundColor(.yellow)
+                        .shadow(color: .black, radius: 2, x: 0, y: 2)
+                    }
+                    
+                    Spacer()
+                    
+                    // Title on the right
+                    if latihanVM.phase == .evaluating {
                         Text("Jurus 1")
                             .font(.system(size: 36, weight: .bold))
                             .foregroundStyle(.black)
                             .shadow(color: .white, radius: 2, x: 0, y: 2)
                     }
-                    .padding(.horizontal, 16)
-                    
+                }
+                .padding(.horizontal, 16)
+                
+                if latihanVM.phase == .evaluating {
                     // Session timer and pose name in horizontal layout with matching styles
                     HStack {
                         // Timer container with brown background
@@ -130,7 +132,7 @@ struct LatihanView: View {
                         }
                     }
                     .padding(.horizontal, 20)
- 
+                    
                     
                     Spacer()
                     
@@ -189,13 +191,13 @@ struct LatihanView: View {
                                                     .stroke(Color.white, lineWidth: 2)
                                             )
                                             .frame(width: 200, height: 120)
-                                            
+                                        
                                         VStack(spacing: 0) {
                                             Text("Tahan Posisi")
                                                 .font(.headline)
                                                 .foregroundColor(.white)
                                                 .padding(.top, 10)
-                                                
+                                            
                                             Text("\(latihanVM.countdownValue)")
                                                 .font(.system(size: 60, weight: .bold))
                                                 .foregroundColor(.green)
@@ -212,17 +214,17 @@ struct LatihanView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
-//                    .background(
-//                        RoundedRectangle(cornerRadius: 10)
-//                            .fill(latihanVM.isPoseMatched ? Color.clear : Color.white.opacity(0.8))
-//                    )
+                    //                    .background(
+                    //                        RoundedRectangle(cornerRadius: 10)
+                    //                            .fill(latihanVM.isPoseMatched ? Color.clear : Color.white.opacity(0.8))
+                    //                    )
                     
                     // Button to finish or skip the current training
                     Button(action: {
                         navigate(.finish)
                     }) {
                         Text(latihanVM.showCompletionMessage ? "Selesai" : "")
-
+                        
                     }
                     .padding(.top, 10)
                 } else {
@@ -264,7 +266,7 @@ struct LatihanView: View {
                     }
                 }
             }
-            .padding(.vertical, 30)
+            .padding(.vertical, 10)
             .animation(.easeInOut, value: latihanVM.phase)
             .opacity(latihanVM.showPoseTransition ? 0 : 1)
             .animation(.easeInOut(duration: 0.3), value: latihanVM.showPoseTransition)
@@ -277,8 +279,8 @@ struct LatihanView: View {
                     sessionElapsedTime: latihanVM.sessionElapsedTime
                 )
                 poseTransitionView
-                .transition(.opacity)
-                .zIndex(10)
+                    .transition(.opacity)
+                    .zIndex(10)
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -367,11 +369,11 @@ struct PoseTransitionView: View {
                             .padding(.horizontal, 40)
                     }
                     
-
+                    
                 }
                 
                 Spacer()
             }
         }
     }
-} 
+}
