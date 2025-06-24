@@ -14,6 +14,22 @@ struct TutorialView: View {
         ZStack(alignment: .topTrailing) {
             Color("BackgroundTutorial")
             
+            Button(action: {
+                dismiss()
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    Text("Kembali")
+                        .font(.title3)
+                    Spacer()
+                }
+                .foregroundColor(.yellow)
+                .padding(.leading, 20)
+                .padding(.top, 70)
+            }
+            
             VStack {
                 HStack {
                     Text("Informasi")
@@ -27,64 +43,64 @@ struct TutorialView: View {
                 
                 VStack(spacing: 20) {
                     Button(action: {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            navigate(.caraMenggunakan)
-                        }
+                        navigate(.caraMenggunakan)
                     }) {
                         HStack {
                             Text("Cara Menggunakan Aplikasi SIRAJ")
-                                .foregroundColor(.white)
-                                .font(.title2)
+                                .foregroundColor(.black)
+                                .font(.title3)
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity)
-                                .padding(.leading, 15)
+                                .fontWeight(.medium)
+                                .padding(.leading, 10)
+                                .offset(x: 10)
                             
                             Image("AssetListTutorial1")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 120, height: 200)
-                                .padding(.bottom, -15)
+                                .frame(width: 130, height: 130)
+                                .offset(x: 10, y: 20)
                         }
                         
                     }
                     .frame(height: 100)
-                    .background(Color("BackgroundListTutorial"))
+                    .background(.white)
                     .cornerRadius(12)
+                    .shadow(radius: 8)
                     
                     
                     Button(action: {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            navigate(.bukuJurus)
-                        }
+                        navigate(.bukuJurus)
                     }) {
                         HStack {
                             Text("Buku Jurus Tunggal Baku IPSI")
-                                .foregroundColor(.white)
-                                .font(.title2)
+                                .foregroundColor(.black)
+                                .font(.title3)
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity)
-                                .padding(.leading, 15)
+                                .fontWeight(.medium)
+                                .padding(.leading, 20)
                             
                             Image("AssetListTutorial2")
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 120, height: 200)
-                                .padding(.bottom, -15)
+                                .offset(x: 0,y: 20)
                         }
                     }
                     .frame(height: 100)
-                    .background(Color("BackgroundListTutorial"))
+                    .background(.white)
                     .cornerRadius(12)
+                    
                 }
                 
                 Spacer()
             }
             .padding(.horizontal, 30)
-            .padding(.top, 70)
+            .padding(.top, 120)
         }
         .ignoresSafeArea()
+        .navigationBarBackButtonHidden(true)
     }
 }
 

@@ -5,13 +5,18 @@ import Combine
 
 /**
  * CameraViewModel
- * 
+ *
  * Handles camera setup, permissions, and live video feed configuration for pose detection.
  * This view model manages the AVCaptureSession and processes camera frames for pose analysis.
  */
 class CameraViewModel: ObservableObject {
-
+    
     // - Properties
+    enum PermissionStatus {
+        case pending
+        case denied
+        case authorized
+    }
     
     /// The capture session that manages camera input and output
     let session = AVCaptureSession()
@@ -24,6 +29,8 @@ class CameraViewModel: ObservableObject {
     /// Delegate that processes video sample buffers (typically the PoseEstimationViewModel)
     weak var delegate: AVCaptureVideoDataOutputSampleBufferDelegate?
     
+    @Published var permissionStatus: PermissionStatus = .pending
+    
     // - Camera Permission
     
     /**
@@ -35,15 +42,31 @@ class CameraViewModel: ObservableObject {
         case .authorized:
             // Camera permission already granted, proceed with setup
             await setupCamera()
+            DispatchQueue.main.async {
+                self.permissionStatus = .authorized
+            }
         case .notDetermined:
             // Request camera access from the user
             let granted = await AVCaptureDevice.requestAccess(for: .video)
             if granted {
                 await setupCamera()
+                DispatchQueue.main.async {
+                    self.permissionStatus = .authorized
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.permissionStatus = .denied
+                }
             }
-        default:
-            // Permission denied or restricted
-            print("Camera permission denied")
+        case .denied, .restricted:
+            DispatchQueue.main.async {
+                self.permissionStatus = .denied
+            }
+            
+        @unknown default:
+            DispatchQueue.main.async {
+                self.permissionStatus = .pending
+            }
         }
     }
     

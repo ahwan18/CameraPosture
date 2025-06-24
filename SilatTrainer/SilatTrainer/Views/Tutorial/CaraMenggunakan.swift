@@ -10,16 +10,33 @@ import SwiftUI
 
 
 struct CaraMenggunakan: View {
+    @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        ZStack() {
+        ZStack(alignment: .topLeading) {
             Color("BackgroundTutorial")
+            
+            Button(action: {
+                dismiss()
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    Text("Kembali")
+                        .font(.title3)
+                    Spacer()
+                }
+                .foregroundColor(.yellow)
+                .padding(.leading, 20)
+                .padding(.top, 70)
+            }
             
             VStack {
                 Spacer()
                 HStack {
                     Text("Cara Menggunakan Aplikasi SIRAJ")
-                        .font(.title3)
+                        .font(.headline)
                         .padding(.bottom, 10)
                         .foregroundStyle(.white)
                     Spacer()
@@ -27,7 +44,8 @@ struct CaraMenggunakan: View {
 
                 if let videoURL = Bundle.main.url(forResource: "latihan", withExtension: "mp4") {
                      VideoPlayerView(url: videoURL)
-                         .frame(height: 600)
+                         .frame(height: 550)
+                    
                  } else {
                      Text("Video not found.")
                          .foregroundColor(.red)
@@ -39,9 +57,9 @@ struct CaraMenggunakan: View {
             
         }
         .ignoresSafeArea()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+//        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         
-//        .navigationBarBackButtonHidden(true)
+        .navigationBarBackButtonHidden(true)
     }
 }
 
