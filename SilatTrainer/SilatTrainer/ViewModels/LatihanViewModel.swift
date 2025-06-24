@@ -60,6 +60,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private var poseAttemptStartTime: Date?                // When user started attempting current pose
     private var poseMadeError: Bool = false                // If user made an error during countdown
     private var poseTransitionCount: Int = 0               // Count of pose transitions (splash screens)
+    private var poseHadHoldFailure: [Int: Bool] = [:]      // Track if pose had hold failure (poseTimerDidFail) on first attempt
     
     // - Session timer properties
     private var sessionTimer: Timer?                    // Timer for tracking session duration
@@ -309,8 +310,22 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     
     /// Menghasilkan objek TrainingResult dari sesi latihan saat ini
     private func generateTrainingResult() -> TrainingResult {
-        // Hitung jumlah pose yang benar dalam percobaan pertama
-        let correctPosesCount = poseFirstAttemptSuccess.values.filter { $0 }.count
+        // Hitung jumlah pose yang benar: hanya jika poseHadHoldFailure[index] == false (atau tidak ada entry)
+        var correctPosesCount = 0
+        for i in 0..<poseData.count {
+            let hadFail = poseHadHoldFailure[i] ?? false
+            if !hadFail {
+                correctPosesCount += 1
+            }
+        }
+        
+        // Debug info untuk presisi
+        print("🔍 DETAIL PRESISI POSE (berdasarkan poseHadHoldFailure):")
+        for i in 0..<poseData.count {
+            let hadFail = poseHadHoldFailure[i] ?? false
+            print("  - Pose A\(i+1): \(!hadFail ? "✅ BENAR" : "❌ SALAH")")
+        }
+        print("📊 Total presisi: \(correctPosesCount)/\(poseData.count)")
         
         // Hitung durasi yang sebenarnya (mengurangi waktu transisi)
         var actualDuration: Int = 0
@@ -319,8 +334,10 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
             let rawDuration = Int(Date().timeIntervalSince(startTime))
             let transitionDeduction = poseTransitionCount * 2  // 2 detik per transisi
             actualDuration = max(0, rawDuration - transitionDeduction)
+            print("⏱️ Durasi aktual: \(rawDuration)s - \(transitionDeduction)s (transisi) = \(actualDuration)s")
         } else {
             actualDuration = Int(sessionDuration)
+            print("⏱️ Menggunakan durasi sesi: \(actualDuration)s")
         }
         
         // Set waktu selesai latihan untuk perhitungan durasi
@@ -479,6 +496,11 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         isPoseMatched = false
         holdProgress = 0.0
         countdownValue = 8
+        // Tandai pose ini sebagai gagal pada hold pose (evaluasi) di percobaan pertama
+        if phase == .evaluating && poseHadHoldFailure[currentPoseIndex] != true {
+            print("❌ poseTimerDidFail: Pose A\(currentPoseIndex+1) gagal pada hold pose (percobaan pertama)")
+            poseHadHoldFailure[currentPoseIndex] = true
+        }
     }
     
     /// Called when the timer updates with new countdown value and progress
@@ -572,9 +594,14 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
                     if let joints = self.convertJointPositionsToStringKeys(self.poseViewModel.detectedBodyParts) {
                         print("📊 Menyimpan \(joints.count) joint positions untuk pose A\(self.currentPoseIndex + 1)")
                         self.poseJointPositions[self.currentPoseIndex] = joints
-                        // Hanya tandai sukses jika tidak ada error
+                        
+                        // Tandai pose sebagai benar jika user tidak membuat kesalahan selama countdown
                         if !self.poseMadeError {
+                            print("✅ Pose A\(self.currentPoseIndex + 1) berhasil tanpa kesalahan, menandai sebagai benar")
                             self.poseFirstAttemptSuccess[self.currentPoseIndex] = true
+                        } else {
+                            print("⚠️ Pose A\(self.currentPoseIndex + 1) memiliki kesalahan, tidak dihitung sebagai benar")
+                            self.poseFirstAttemptSuccess[self.currentPoseIndex] = false
                         }
                     } else {
                         print("❌ Tidak dapat mengambil joint positions untuk pose A\(self.currentPoseIndex + 1)")
@@ -603,6 +630,16 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
                         // Save joint positions
                         if let joints = self.convertJointPositionsToStringKeys(self.poseViewModel.detectedBodyParts) {
                             self.poseJointPositions[self.currentPoseIndex] = joints
+                            
+                            // Jika belum ada flag sukses, cek apakah tidak ada error dan set flag
+                            if self.poseFirstAttemptSuccess[self.currentPoseIndex] == nil {
+                                if !self.poseMadeError {
+                                    print("✅ Pose A\(self.currentPoseIndex + 1) berhasil pada backup, menandai sebagai benar")
+                                    self.poseFirstAttemptSuccess[self.currentPoseIndex] = true
+                                } else {
+                                    self.poseFirstAttemptSuccess[self.currentPoseIndex] = false
+                                }
+                            }
                         }
                     }
                 } else {
@@ -627,24 +664,30 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         poseMadeError = true
         
         print("🔴 User keluar dari posisi saat countdown pose A\(currentPoseIndex + 1), kembali ke positioning")
+        print("⚠️ Pose A\(currentPoseIndex + 1) ditandai sebagai TIDAK BENAR karena error saat countdown")
         
         // Capture frame showing the error with joint positions
-        if let frame = poseViewModel.currentFrame {
-            print("📸 Mengambil gambar error pose A\(currentPoseIndex + 1)")
+        if let frame = self.poseViewModel.currentFrame {
+            print("📸 Mengambil gambar error pose A\(self.currentPoseIndex + 1)")
             // Tetap simpan gambar meskipun error
-            poseUserImages[currentPoseIndex] = frame
+            self.poseUserImages[self.currentPoseIndex] = frame
             
             // Save joint positions - convert to String keys
-            if let joints = convertJointPositionsToStringKeys(poseViewModel.detectedBodyParts) {
-                print("📊 Menyimpan \(joints.count) joint positions untuk pose error A\(currentPoseIndex + 1)")
-                poseJointPositions[currentPoseIndex] = joints
+            if let joints = self.convertJointPositionsToStringKeys(self.poseViewModel.detectedBodyParts) {
+                print("📊 Menyimpan \(joints.count) joint positions untuk pose error A\(self.currentPoseIndex + 1)")
+                self.poseJointPositions[self.currentPoseIndex] = joints
+                
+                // Jelas tandai pose sebagai tidak benar
+                self.poseFirstAttemptSuccess[self.currentPoseIndex] = false
             }
         } else {
-            print("❌ Tidak dapat mengambil frame error untuk pose A\(currentPoseIndex + 1)")
+            print("❌ Tidak dapat mengambil frame error untuk pose A\(self.currentPoseIndex + 1)")
+            // Tetap tandai sebagai tidak benar
+            self.poseFirstAttemptSuccess[self.currentPoseIndex] = false
         }
         
-        if !isMuted {
-            voiceFeedbackManager.speak("Posisi salah, kembali ke dalam kotak", interrupt: true)
+        if !self.isMuted {
+            self.voiceFeedbackManager.speak("Posisi salah, kembali ke dalam kotak", interrupt: true)
         }
     }
     
@@ -665,6 +708,8 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         holdProgress = 0.0
         countdownValue = 8
         lastCorrectionTime = .distantPast
+        // Reset flag hold failure untuk pose berikutnya (jika ada)
+        // poseHadHoldFailure[currentPoseIndex+1] = false // opsional, biarkan nil jika belum ada percobaan
     }
     
     /// Updates the display name of the current pose
