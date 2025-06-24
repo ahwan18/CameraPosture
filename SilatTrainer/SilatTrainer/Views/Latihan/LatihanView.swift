@@ -15,16 +15,16 @@ struct LatihanView: View {
     @StateObject private var cameraVM = CameraViewModel()          // Handles camera access and configuration
     @StateObject private var poseViewModel: PoseEstimationViewModel // Processes camera feed for pose detection
     
-
+    
     // SwiftData model context
     @Environment(\.modelContext) private var modelContext
     
     // Alert state
     @State private var showExitConfirmation = false
-
+    
     // State for showing the tutorial overlay
     @State private var showTutorial = false
-
+    
     
     /// Initializes the view with navigation handlers and sets up the view models
     /// - Parameters:
@@ -75,7 +75,8 @@ struct LatihanView: View {
                     targetPose: latihanVM.currentTargetPose,
                     showGuideArrows: latihanVM.isAtOptimalDistance && !latihanVM.isPoseMatched && !latihanVM.showPoseTransition,
                     showFittingBox: latihanVM.phase != .evaluating,
-                    isUserPositioned: latihanVM.isUserPositioned
+                    isUserPositioned: latihanVM.isUserPositioned,
+                    isPositioningPhase: latihanVM.phase == .positioning
                 )
                 
                 VStack {
@@ -98,58 +99,55 @@ struct LatihanView: View {
                         
                         Spacer()
                         
-                        // Title on the right
-                        if latihanVM.phase == .evaluating {
-                            Text("Jurus 1")
-                                .font(.system(size: 36, weight: .bold))
-                                .foregroundStyle(.black)
-                                .shadow(color: .white, radius: 2, x: 0, y: 2)
-                        }
+                        // Title on the right - consistent across all phases
+                        Text("Jurus 1")
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundStyle(.black)
+                            .shadow(color: .white, radius: 2, x: 0, y: 2)
                     }
                     .padding(.horizontal, 20)
                     
-                    Spacer()
-  
-                    if latihanVM.phase == .evaluating {
-                        // Session timer and pose name in horizontal layout with matching styles
-                        HStack {
-                            // Timer container with brown background
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color("silatB"))
-                                    .frame(width: 140, height: 50)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(Color.black, lineWidth: 3)
-                                    )
-                                
-                                Text(latihanVM.sessionElapsedTime)
-                                    .font(.system(size: 32, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
+                    // Session timer and pose name in horizontal layout with matching styles - consistent across all phases
+                    HStack {
+                        // Timer container with brown background
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color("silatB"))
+                                .frame(width: 140, height: 50)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.black, lineWidth: 3)
+                                )
                             
-                            Spacer()
-                            
-                            // Pose name container with matching style
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color("silatB"))
-                                    .frame(width: 140, height: 50)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(Color.black, lineWidth: 3)
-                                    )
-                                
-                                Text(latihanVM.poseName)
-                                    .font(.system(size: 32, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
+                            Text(latihanVM.sessionElapsedTime)
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundColor(.white)
                         }
-                        .padding(.horizontal, 20)
-                        
                         
                         Spacer()
                         
+                        // Pose name container with matching style
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color("silatB"))
+                                .frame(width: 140, height: 50)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.black, lineWidth: 3)
+                                )
+                            
+                            Text(latihanVM.poseName)
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .opacity(latihanVM.showPoseTransition ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.3), value: latihanVM.showPoseTransition)
+                    
+                    Spacer()
+                    
+                    if latihanVM.phase == .evaluating && !latihanVM.showPoseTransition {                        
                         // Feedback and guidance panel
                         VStack(spacing: 10) {
                             // Distance guidance - informs user if they're at optimal distance
@@ -226,100 +224,48 @@ struct LatihanView: View {
                                 }
                             }
                         }
-
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    
-                    // Button to finish or skip the current training
-                    Button(action: {
-                        // Save training data before navigating
-                        latihanVM.saveTrainingSession(to: modelContext)
-                        navigate(.finish)
-                    }) {
-                        Text(latihanVM.showCompletionMessage ? "Selesai" : "")
- 
-                    }
-                    .padding(.top, 10)
-                } else {
-                    // Timer display for positioning and countdown phases
-                    VStack {
-                        HStack {
-                            Spacer()
-
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
-                        //                    .background(
-                        //                        RoundedRectangle(cornerRadius: 10)
-                        //                            .fill(latihanVM.isPoseMatched ? Color.clear : Color.white.opacity(0.8))
-                        //                    )
                         
                         // Button to finish or skip the current training
                         Button(action: {
+                            // Save training data before navigating
+                            latihanVM.saveTrainingSession(to: modelContext)
                             navigate(.finish)
                         }) {
                             Text(latihanVM.showCompletionMessage ? "Selesai" : "")
-
                         }
                         .padding(.top, 10)
-                    } else {
-                        // Timer display for positioning and countdown phases
-                        VStack {
-                            HStack {
-                                Spacer()
+                    } else if !latihanVM.showPoseTransition {
+                        // Content for positioning and countdown phases - simplified without redundant timer
+                        HStack {
+                            Spacer()
+                        
+                            // Button to finish or skip the current training
+                            Button(action: {
+                                navigate(.finish)
+                            }) {
+                                Text(latihanVM.showCompletionMessage ? "Selesai" : "")
                             }
                             .padding(.top, 10)
-                            
-                            Spacer()
                         }
-                        
-                        VStack {
-                            Spacer()
-                            // Positioning phase UI - guides the user to position correctly in frame
-                            if latihanVM.phase == .positioning {
-                                // Remove the text here as it's now in PoseOverlayView
-                                
-                                Text(latihanVM.isUserPositioned ? "Bagus! Tahan Posisi" : "")
-                                    .font(.headline)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(latihanVM.isUserPositioned ? .green : .yellow)
-                                    .padding(.horizontal)
-                                    .multilineTextAlignment(.center)
-                                    .shadow(radius: 3)
-                            }
-                            
-                            // Countdown phase UI - shows large countdown numbers
-                            if latihanVM.phase == .countdown {
-                                Text("\(latihanVM.positioningCountdownValue)")
-                                    .font(.system(size: 120, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .shadow(radius: 5)
-                                    .transition(.opacity.combined(with: .scale))
-                            }
-                            Spacer()
-                            Spacer()
-                        }
+                        .padding(.vertical, 10)
+                        .animation(.easeInOut, value: latihanVM.phase)
+                    }
+                    
+                    // Pose transition overlay - shown between poses
+                    if latihanVM.showPoseTransition {
+                        let poseTransitionView = PoseTransitionView(
+                            poseNumber: latihanVM.currentPoseIndex + 2,
+                            targetPose: latihanVM.nextTargetPose,
+                            sessionElapsedTime: latihanVM.sessionElapsedTime
+                        )
+                        poseTransitionView
+                            .transition(.opacity)
+                            .zIndex(10)
                     }
                 }
-                .padding(.vertical, 10)
-                .animation(.easeInOut, value: latihanVM.phase)
-                .opacity(latihanVM.showPoseTransition ? 0 : 1)
-                .animation(.easeInOut(duration: 0.3), value: latihanVM.showPoseTransition)
-                
-                // Pose transition overlay - shown between poses
-                if latihanVM.showPoseTransition {
-                    let poseTransitionView = PoseTransitionView(
-                        poseNumber: latihanVM.currentPoseIndex + 2,
-                        targetPose: latihanVM.nextTargetPose,
-                        sessionElapsedTime: latihanVM.sessionElapsedTime
-                    )
-                    poseTransitionView
-                        .transition(.opacity)
-                        .zIndex(10)
-                }
             }
-            // Camera preview layer that shows the camera feed
-            
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {
@@ -355,76 +301,60 @@ struct LatihanView: View {
             Text("Jika kamu keluar sekarang, sesi latihan akan diakhiri dan semua gerakan yang belum selesai akan dianggap salah.")
         }
     }
-}
-
-/// `PoseTransitionView` displays information about the next pose during transitions
-/// It shows a fullscreen overlay with the pose number, image, and countdown
-struct PoseTransitionView: View {
-    // The number of the upcoming pose
-    let poseNumber: Int
-    // Data for the upcoming pose (optional)
-    let targetPose: PoseData?
-    // Current session elapsed time
-    let sessionElapsedTime: String
     
-    var body: some View {
-        ZStack {
-            // Dimmed background for focus
-            Color.black.opacity(0.9)
-                .ignoresSafeArea()
-            
-            VStack {
-                // Timer display at the top
-                HStack {
+    /// `PoseTransitionView` displays information about the next pose during transitions
+    /// It shows a fullscreen overlay with the pose number, image, and countdown
+    struct PoseTransitionView: View {
+        // The number of the upcoming pose
+        let poseNumber: Int
+        // Data for the upcoming pose (optional)
+        let targetPose: PoseData?
+        // Current session elapsed time
+        let sessionElapsedTime: String
+        
+        var body: some View {
+            ZStack {
+                // Dimmed background for focus
+                Color.black.opacity(0.9)
+                    .ignoresSafeArea()
+                
+                VStack {
+                    // Header spacing for consistency with main view
+                    HStack {
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+                    .frame(height: 120)
+                    
                     Spacer()
                     
-                    HStack(spacing: 5) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 16, weight: .medium))
-                        Text(sessionElapsedTime)
-                            .font(.system(size: 16, weight: .semibold))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(0.2))
-                    )
-                    .foregroundColor(.white)
-                    .padding(.trailing, 20)
-                }
-                .padding(.top, 20)
-                
-                Spacer()
-                
-                VStack(spacing: 30) {
-                    // Transition header
-                    Text("Gerakan Berikutnya")
-                        .font(.system(size: 36, weight: .bold))
-                        .foregroundColor(.white)
-                    
-                    // Pose identifier
-                    Text("A\(poseNumber)")
-                        .font(.system(size: 50, weight: .bold))
-                        .foregroundColor(.yellow)
-                    
-                    // Pose reference image (if available)
-                    if targetPose != nil {
-                        Image("a\(poseNumber)")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: 600)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color.white.opacity(0.1))
-                            )
-                            .padding(.horizontal, 40)
+                    VStack(spacing: 30) {
+                        // Transition header
+                        Text("Gerakan Berikutnya")
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(.white)
+                        
+                        // Pose identifier
+                        Text("A\(poseNumber)")
+                            .font(.system(size: 50, weight: .bold))
+                            .foregroundColor(.yellow)
+                        
+                        // Pose reference image (if available)
+                        if targetPose != nil {
+                            Image("a\(poseNumber)")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxHeight: 600)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.white.opacity(0.1))
+                                )
+                                .padding(.horizontal, 40)
+                        }
                     }
                     
-                    
+                    Spacer()
                 }
-                
-                Spacer()
             }
         }
     }

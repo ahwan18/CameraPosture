@@ -20,8 +20,9 @@ struct PoseOverlayView: View {
     let targetPose: PoseData?
     let showGuideArrows: Bool
     let showFittingBox: Bool
-    let fittingBoxRect = CGRect(x: 0.15, y: 0.1, width: 0.7, height: 0.8)
+    let fittingBoxRect = CGRect(x: 0.15, y: 0.25, width: 0.7, height: 0.7) // Moved down to y: 0.25
     let isUserPositioned: Bool
+    let isPositioningPhase: Bool // Added parameter to check for positioning phase
     
     // Convert joint key to HumanBodyPoseObservation.JointName
     private func keyToJointName(_ key: String) -> HumanBodyPoseObservation.JointName? {
@@ -287,12 +288,33 @@ struct PoseOverlayView: View {
             ZStack {
                 
                 if showFittingBox {
+                    // Add black & white overlay effect for areas outside the rectangle
+                    if isPositioningPhase {
+                        // Full screen black & white overlay
+                        Rectangle()
+                            .fill(Color.black.opacity(0.5))
+                            .background(.ultraThinMaterial)
+                            .saturation(0) // Remove colors for black & white effect
+                            .contrast(1.2) // Increase contrast slightly
+                            .brightness(-0.1) // Make it slightly darker
+                            .ignoresSafeArea()
+                    }
+                    
                     let boxRect = CGRect(
                         x: fittingBoxRect.origin.x * geometry.size.width,
                         y: fittingBoxRect.origin.y * geometry.size.height,
                         width: fittingBoxRect.width * geometry.size.width,
                         height: fittingBoxRect.height * geometry.size.height
                     )
+                    
+                    // Create a window in the overlay if in positioning phase
+                    if isPositioningPhase {
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(width: boxRect.width, height: boxRect.height)
+                            .position(x: boxRect.midX, y: boxRect.midY)
+                            .blendMode(.destinationOut)
+                    }
                     
                     // Green positioning frame with thicker corners
                     ZStack {
@@ -302,19 +324,15 @@ struct PoseOverlayView: View {
                             .frame(width: boxRect.width, height: boxRect.height)
                             .position(x: boxRect.midX, y: boxRect.midY)
                         
-                        // Box text below the frame
-                        VStack(spacing: 20) {
-                            Spacer()
-                            
-                            Text("Sesuaikan Posisi Anda \n Di Dalam Kotak")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .shadow(radius: 3)
-                                .multilineTextAlignment(.center)
-                                .padding(.top, boxRect.height + 20) // Position below the box
-                        }
-                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        // Box text inside the frame
+                        Text("Sesuaikan Posisi Anda \n Di Dalam Kotak")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .shadow(radius: 3)
+                            .multilineTextAlignment(.center)
+                            .frame(width: boxRect.width)
+                            .position(x: boxRect.midX, y: boxRect.midY)
                         
                         // Dynamic corner color based on user position
                         let cornerColor = isUserPositioned ? Color.green : Color.red
