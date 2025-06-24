@@ -53,235 +53,240 @@ struct LatihanView: View {
     
     var body: some View {
         ZStack {
-            // Camera preview layer that shows the camera feed
-            CameraPreviewView(session: cameraVM.session)
-                .ignoresSafeArea()
-            
-            // Overlay that shows detected body parts, connections, and guidance elements
-            PoseOverlayView(
-                bodyParts: poseViewModel.detectedBodyParts,
-                connections: poseViewModel.bodyConnections,
-                targetPose: latihanVM.currentTargetPose,
-                showGuideArrows: latihanVM.isAtOptimalDistance && !latihanVM.isPoseMatched && !latihanVM.showPoseTransition,
-                showFittingBox: latihanVM.phase != .evaluating,
-                isUserPositioned: latihanVM.isUserPositioned
-            )
-            
-            VStack {
-                // UI changes based on the current training phase
+            if cameraVM.permissionStatus == .denied {
+                PermissionDeniedView()
+            } else {
+                CameraPreviewView(session: cameraVM.session)
+                    .ignoresSafeArea()
                 
-                HStack {
-                    Button(action: {
-                        close()
-                    }) {
-                        HStack(spacing: 5) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 24, weight: .semibold))
-                            Text("Kembali")
-                                .font(.system(size: 24, weight: .semibold))
-                        }
-                        .foregroundColor(.yellow)
-                        .shadow(color: .black, radius: 2, x: 0, y: 2)
-                    }
-                    
-                    Spacer()
-                    
-                    // Title on the right
-                    if latihanVM.phase == .evaluating {
-                        Text("Jurus 1")
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundStyle(.black)
-                            .shadow(color: .white, radius: 2, x: 0, y: 2)
-                    }
-                }
-                .padding(.horizontal, 16)
+                // Overlay that shows detected body parts, connections, and guidance elements
+                PoseOverlayView(
+                    bodyParts: poseViewModel.detectedBodyParts,
+                    connections: poseViewModel.bodyConnections,
+                    targetPose: latihanVM.currentTargetPose,
+                    showGuideArrows: latihanVM.isAtOptimalDistance && !latihanVM.isPoseMatched && !latihanVM.showPoseTransition,
+                    showFittingBox: latihanVM.phase != .evaluating,
+                    isUserPositioned: latihanVM.isUserPositioned
+                )
                 
-                if latihanVM.phase == .evaluating {
-                    // Session timer and pose name in horizontal layout with matching styles
+                VStack {
+                    // UI changes based on the current training phase
+                    
                     HStack {
-                        // Timer container with brown background
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color("silatB"))
-                                .frame(width: 140, height: 50)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(Color.black, lineWidth: 3)
-                                )
-                            
-                            Text(latihanVM.sessionElapsedTime)
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(.white)
+                        Button(action: {
+                            close()
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 24, weight: .semibold))
+                                Text("Kembali")
+                                    .font(.system(size: 24, weight: .semibold))
+                            }
+                            .foregroundColor(.yellow)
+                            .shadow(color: .black, radius: 2, x: 0, y: 2)
                         }
                         
                         Spacer()
                         
-                        // Pose name container with matching style
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color("silatB"))
-                                .frame(width: 140, height: 50)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(Color.black, lineWidth: 3)
-                                )
-                            
-                            Text(latihanVM.poseName)
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(.white)
+                        // Title on the right
+                        if latihanVM.phase == .evaluating {
+                            Text("Jurus 1")
+                                .font(.system(size: 36, weight: .bold))
+                                .foregroundStyle(.black)
+                                .shadow(color: .white, radius: 2, x: 0, y: 2)
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 16)
                     
-                    
-                    Spacer()
-                    
-                    // Feedback and guidance panel
-                    VStack(spacing: 10) {
-                        // Distance guidance - informs user if they're at optimal distance
+                    if latihanVM.phase == .evaluating {
+                        // Session timer and pose name in horizontal layout with matching styles
                         HStack {
-                            Image(systemName: latihanVM.isAtOptimalDistance ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                                .foregroundColor(latihanVM.isAtOptimalDistance ? .green : .orange)
-                            Text(latihanVM.isAtOptimalDistance ? "Posisi Optimal" : "Sesuaikan Jarak")
-                                .foregroundColor(latihanVM.isAtOptimalDistance ? .green : .orange)
-                        }
-                        .font(.system(size: 18, weight: .medium))
-                        
-                        // Control buttons always visible
-                        HStack {
-                            // Mute button on the left side
-                            Button(action: {
-                                latihanVM.toggleMute()
-                            }) {
-                                Image(systemName: latihanVM.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                                    .font(.system(size: 24))
+                            // Timer container with brown background
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color("silatB"))
+                                    .frame(width: 140, height: 50)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color.black, lineWidth: 3)
+                                    )
+                                
+                                Text(latihanVM.sessionElapsedTime)
+                                    .font(.system(size: 32, weight: .bold))
                                     .foregroundColor(.white)
-                                    .frame(width: 44, height: 44)
-                                    .background(Color.black.opacity(0.6))
-                                    .cornerRadius(22)
                             }
                             
                             Spacer()
                             
-                            // Play/Pause button on the right side
-                            Button(action: {
-                                latihanVM.togglePause()
-                            }) {
-                                Image(systemName: latihanVM.isPaused ? "play.fill" : "pause.fill")
-                                    .font(.system(size: 24))
+                            // Pose name container with matching style
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color("silatB"))
+                                    .frame(width: 140, height: 50)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color.black, lineWidth: 3)
+                                    )
+                                
+                                Text(latihanVM.poseName)
+                                    .font(.system(size: 32, weight: .bold))
                                     .foregroundColor(.white)
-                                    .frame(width: 44, height: 44)
-                                    .background(Color.black.opacity(0.6))
-                                    .cornerRadius(22)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        
+                        
+                        Spacer()
+                        
+                        // Feedback and guidance panel
+                        VStack(spacing: 10) {
+                            // Distance guidance - informs user if they're at optimal distance
+                            HStack {
+                                Image(systemName: latihanVM.isAtOptimalDistance ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                    .foregroundColor(latihanVM.isAtOptimalDistance ? .green : .orange)
+                                Text(latihanVM.isAtOptimalDistance ? "Posisi Optimal" : "Sesuaikan Jarak")
+                                    .foregroundColor(latihanVM.isAtOptimalDistance ? .green : .orange)
+                            }
+                            .font(.system(size: 18, weight: .medium))
+                            
+                            // Control buttons always visible
+                            HStack {
+                                // Mute button on the left side
+                                Button(action: {
+                                    latihanVM.toggleMute()
+                                }) {
+                                    Image(systemName: latihanVM.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.white)
+                                        .frame(width: 44, height: 44)
+                                        .background(Color.black.opacity(0.6))
+                                        .cornerRadius(22)
+                                }
+                                
+                                Spacer()
+                                
+                                // Play/Pause button on the right side
+                                Button(action: {
+                                    latihanVM.togglePause()
+                                }) {
+                                    Image(systemName: latihanVM.isPaused ? "play.fill" : "pause.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.white)
+                                        .frame(width: 44, height: 44)
+                                        .background(Color.black.opacity(0.6))
+                                        .cornerRadius(22)
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            
+                            // Only show pose matching guidance when at optimal distance and not transitioning
+                            if latihanVM.isAtOptimalDistance && !latihanVM.showPoseTransition {
+                                // Hold timer and progress when pose is matched
+                                if latihanVM.isPoseMatched {
+                                    VStack(spacing: 8) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 15)
+                                                .fill(Color.black.opacity(0.8))
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 15)
+                                                        .stroke(Color.white, lineWidth: 2)
+                                                )
+                                                .frame(width: 200, height: 120)
+                                            
+                                            VStack(spacing: 0) {
+                                                Text("Tahan Posisi")
+                                                    .font(.headline)
+                                                    .foregroundColor(.white)
+                                                    .padding(.top, 10)
+                                                
+                                                Text("\(latihanVM.countdownValue)")
+                                                    .font(.system(size: 60, weight: .bold))
+                                                    .foregroundColor(.green)
+                                            }
+                                        }
+                                        
+                                        // Progress bar for hold duration
+                                        ProgressView(value: latihanVM.holdProgress)
+                                            .progressViewStyle(LinearProgressViewStyle(tint: .green))
+                                            .frame(width: 200)
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
+                        //                    .background(
+                        //                        RoundedRectangle(cornerRadius: 10)
+                        //                            .fill(latihanVM.isPoseMatched ? Color.clear : Color.white.opacity(0.8))
+                        //                    )
                         
-                        // Only show pose matching guidance when at optimal distance and not transitioning
-                        if latihanVM.isAtOptimalDistance && !latihanVM.showPoseTransition {
-                            // Hold timer and progress when pose is matched
-                            if latihanVM.isPoseMatched {
-                                VStack(spacing: 8) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 15)
-                                            .fill(Color.black.opacity(0.8))
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 15)
-                                                    .stroke(Color.white, lineWidth: 2)
-                                            )
-                                            .frame(width: 200, height: 120)
-                                        
-                                        VStack(spacing: 0) {
-                                            Text("Tahan Posisi")
-                                                .font(.headline)
-                                                .foregroundColor(.white)
-                                                .padding(.top, 10)
-                                            
-                                            Text("\(latihanVM.countdownValue)")
-                                                .font(.system(size: 60, weight: .bold))
-                                                .foregroundColor(.green)
-                                        }
-                                    }
-                                    
-                                    // Progress bar for hold duration
-                                    ProgressView(value: latihanVM.holdProgress)
-                                        .progressViewStyle(LinearProgressViewStyle(tint: .green))
-                                        .frame(width: 200)
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    //                    .background(
-                    //                        RoundedRectangle(cornerRadius: 10)
-                    //                            .fill(latihanVM.isPoseMatched ? Color.clear : Color.white.opacity(0.8))
-                    //                    )
-                    
-                    // Button to finish or skip the current training
-                    Button(action: {
-                        navigate(.finish)
-                    }) {
-                        Text(latihanVM.showCompletionMessage ? "Selesai" : "")
-                        
-                    }
-                    .padding(.top, 10)
-                } else {
-                    // Timer display for positioning and countdown phases
-                    VStack {
-                        HStack {
-                            Spacer()
+                        // Button to finish or skip the current training
+                        Button(action: {
+                            navigate(.finish)
+                        }) {
+                            Text(latihanVM.showCompletionMessage ? "Selesai" : "")
+                            
                         }
                         .padding(.top, 10)
-                        
-                        Spacer()
-                    }
-                    
-                    VStack {
-                        Spacer()
-                        // Positioning phase UI - guides the user to position correctly in frame
-                        if latihanVM.phase == .positioning {
-                            // Remove the text here as it's now in PoseOverlayView
+                    } else {
+                        // Timer display for positioning and countdown phases
+                        VStack {
+                            HStack {
+                                Spacer()
+                            }
+                            .padding(.top, 10)
                             
-                            Text(latihanVM.isUserPositioned ? "Bagus! Tahan Posisi" : "")
-                                .font(.headline)
-                                .fontWeight(.medium)
-                                .foregroundColor(latihanVM.isUserPositioned ? .green : .yellow)
-                                .padding(.horizontal)
-                                .multilineTextAlignment(.center)
-                                .shadow(radius: 3)
+                            Spacer()
                         }
                         
-                        // Countdown phase UI - shows large countdown numbers
-                        if latihanVM.phase == .countdown {
-                            Text("\(latihanVM.positioningCountdownValue)")
-                                .font(.system(size: 120, weight: .bold))
-                                .foregroundColor(.white)
-                                .shadow(radius: 5)
-                                .transition(.opacity.combined(with: .scale))
+                        VStack {
+                            Spacer()
+                            // Positioning phase UI - guides the user to position correctly in frame
+                            if latihanVM.phase == .positioning {
+                                // Remove the text here as it's now in PoseOverlayView
+                                
+                                Text(latihanVM.isUserPositioned ? "Bagus! Tahan Posisi" : "")
+                                    .font(.headline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(latihanVM.isUserPositioned ? .green : .yellow)
+                                    .padding(.horizontal)
+                                    .multilineTextAlignment(.center)
+                                    .shadow(radius: 3)
+                            }
+                            
+                            // Countdown phase UI - shows large countdown numbers
+                            if latihanVM.phase == .countdown {
+                                Text("\(latihanVM.positioningCountdownValue)")
+                                    .font(.system(size: 120, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .shadow(radius: 5)
+                                    .transition(.opacity.combined(with: .scale))
+                            }
+                            Spacer()
+                            Spacer()
                         }
-                        Spacer()
-                        Spacer()
                     }
                 }
+                .padding(.vertical, 10)
+                .animation(.easeInOut, value: latihanVM.phase)
+                .opacity(latihanVM.showPoseTransition ? 0 : 1)
+                .animation(.easeInOut(duration: 0.3), value: latihanVM.showPoseTransition)
+                
+                // Pose transition overlay - shown between poses
+                if latihanVM.showPoseTransition {
+                    let poseTransitionView = PoseTransitionView(
+                        poseNumber: latihanVM.currentPoseIndex + 2,
+                        targetPose: latihanVM.nextTargetPose,
+                        sessionElapsedTime: latihanVM.sessionElapsedTime
+                    )
+                    poseTransitionView
+                        .transition(.opacity)
+                        .zIndex(10)
+                }
             }
-            .padding(.vertical, 10)
-            .animation(.easeInOut, value: latihanVM.phase)
-            .opacity(latihanVM.showPoseTransition ? 0 : 1)
-            .animation(.easeInOut(duration: 0.3), value: latihanVM.showPoseTransition)
+            // Camera preview layer that shows the camera feed
             
-            // Pose transition overlay - shown between poses
-            if latihanVM.showPoseTransition {
-                let poseTransitionView = PoseTransitionView(
-                    poseNumber: latihanVM.currentPoseIndex + 2,
-                    targetPose: latihanVM.nextTargetPose,
-                    sessionElapsedTime: latihanVM.sessionElapsedTime
-                )
-                poseTransitionView
-                    .transition(.opacity)
-                    .zIndex(10)
-            }
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {

@@ -47,22 +47,26 @@ struct TutorialView: View {
                     }) {
                         HStack {
                             Text("Cara Menggunakan Aplikasi SIRAJ")
-                                .foregroundColor(.white)
+                                .foregroundColor(.black)
                                 .font(.title3)
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity)
+                                .fontWeight(.medium)
+                                .padding(.leading, 10)
+                                .offset(x: 10)
                             
                             Image("AssetListTutorial1")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 120, height: 200)
-                                .padding(.bottom, -15)
+                                .frame(width: 130, height: 130)
+                                .offset(x: 10, y: 20)
                         }
                         
                     }
                     .frame(height: 100)
-                    .background(Color("BackgroundListTutorial"))
+                    .background(.white)
                     .cornerRadius(12)
+                    .shadow(radius: 8)
                     
                     
                     Button(action: {
@@ -70,21 +74,24 @@ struct TutorialView: View {
                     }) {
                         HStack {
                             Text("Buku Jurus Tunggal Baku IPSI")
-                                .foregroundColor(.white)
+                                .foregroundColor(.black)
                                 .font(.title3)
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity)
+                                .fontWeight(.medium)
+                                .padding(.leading, 20)
                             
                             Image("AssetListTutorial2")
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 120, height: 200)
-                                .padding(.bottom, -15)
+                                .offset(x: 0,y: 20)
                         }
                     }
                     .frame(height: 100)
-                    .background(Color("BackgroundListTutorial"))
+                    .background(.white)
                     .cornerRadius(12)
+                    
                 }
                 
                 Spacer()
