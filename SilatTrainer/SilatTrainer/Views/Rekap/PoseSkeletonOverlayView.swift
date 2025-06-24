@@ -2,9 +2,9 @@ import SwiftUI
 
 /// View untuk menampilkan overlay skeleton dari pose pada gambar user
 struct PoseSkeletonOverlayView: View {
-    let jointPositions: [String: CGPoint]
-    let lineColor: Color = .blue
-    let jointColor: Color = .red
+    let jointPositions: [String: CGPoint] // User joint positions
+    let idealJointPositions: [String: CGPoint]? // Ideal/reference joint positions (optional)
+    let threshold: CGFloat = 0.15 // Toleransi error joint
     let lineWidth: CGFloat = 2.0
     let jointRadius: CGFloat = 4.0
     
@@ -31,6 +31,27 @@ struct PoseSkeletonOverlayView: View {
         ("leftKnee", "leftAnkle")
     ]
     
+    // Helper: apakah joint user benar (dalam threshold ke ideal)
+    private func isJointCorrect(_ key: String) -> Bool {
+        guard let ideal = idealJointPositions?[key], let user = jointPositions[key] else { return false }
+        let dx = ideal.x - user.x
+        let dy = ideal.y - user.y
+        return sqrt(dx*dx + dy*dy) <= threshold
+    }
+    // Helper: apakah connection benar (kedua joint benar)
+    private func isConnectionCorrect(_ from: String, _ to: String) -> Bool {
+        isJointCorrect(from) && isJointCorrect(to)
+    }
+    // Warna joint
+    private func jointColor(_ key: String) -> Color {
+        guard idealJointPositions != nil else { return .blue }
+        return isJointCorrect(key) ? .green : .red
+    }
+    // Warna garis
+    private func lineColor(_ from: String, _ to: String) -> Color {
+        guard idealJointPositions != nil else { return .blue }
+        return isConnectionCorrect(from, to) ? .green : .red
+    }
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -54,7 +75,7 @@ struct PoseSkeletonOverlayView: View {
                             path.move(to: scaledFromPoint)
                             path.addLine(to: scaledToPoint)
                         }
-                        .stroke(lineColor, lineWidth: lineWidth)
+                        .stroke(lineColor(connection.from, connection.to), lineWidth: lineWidth)
                     }
                 }
                 
@@ -67,7 +88,7 @@ struct PoseSkeletonOverlayView: View {
                         )
                         
                         Circle()
-                            .fill(jointColor)
+                            .fill(jointColor(key))
                             .frame(width: jointRadius * 2, height: jointRadius * 2)
                             .position(scaledPoint)
                     }

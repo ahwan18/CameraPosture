@@ -37,6 +37,9 @@ struct PoseDetail {
     
     /// Posisi joint-joint dari pose yang dilakukan user
     let jointPositions: [String: CGPoint]?
+    
+    /// Posisi joint-joint ideal (referensi)
+    let idealJointPositions: [String: CGPoint]?
 }
 
 /// Service untuk menyimpan dan mengakses hasil latihan

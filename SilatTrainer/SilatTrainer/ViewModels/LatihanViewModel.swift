@@ -61,6 +61,10 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private var poseMadeError: Bool = false                // If user made an error during countdown
     private var poseTransitionCount: Int = 0               // Count of pose transitions (splash screens)
     private var poseHadHoldFailure: [Int: Bool] = [:]      // Track if pose had hold failure (poseTimerDidFail) on first attempt
+    private var poseFailureImages: [Int: UIImage] = [:]    // Store frame ke-5 setelah gagal hold pose
+    private var poseFailureJoints: [Int: [String: CGPoint]] = [:] // Store joints pada frame ke-5 setelah gagal
+    private var failureFrameTimer: Timer? = nil
+    private var failureFrameCount: Int = 0
     
     // - Session timer properties
     private var sessionTimer: Timer?                    // Timer for tracking session duration
@@ -329,12 +333,16 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         
         // Hitung durasi yang sebenarnya (mengurangi waktu transisi)
         var actualDuration: Int = 0
-        if let startTime = actualTrainingStartTime {
-            // Durasi = waktu dari mulai latihan (fitting box pertama) - (jumlah transisi * 2 detik)
-            let rawDuration = Int(Date().timeIntervalSince(startTime))
-            let transitionDeduction = poseTransitionCount * 2  // 2 detik per transisi
+        if let startTime = actualTrainingStartTime, let endTime = actualTrainingEndTime {
+            let rawDuration = Int(endTime.timeIntervalSince(startTime))
+            let transitionDeduction = poseTransitionCount * 2
             actualDuration = max(0, rawDuration - transitionDeduction)
             print("⏱️ Durasi aktual: \(rawDuration)s - \(transitionDeduction)s (transisi) = \(actualDuration)s")
+        } else if let startTime = actualTrainingStartTime {
+            let rawDuration = Int(Date().timeIntervalSince(startTime))
+            let transitionDeduction = poseTransitionCount * 2
+            actualDuration = max(0, rawDuration - transitionDeduction)
+            print("⏱️ Durasi (tanpa endTime): \(rawDuration)s - \(transitionDeduction)s (transisi) = \(actualDuration)s")
         } else {
             actualDuration = Int(sessionDuration)
             print("⏱️ Menggunakan durasi sesi: \(actualDuration)s")
@@ -358,8 +366,11 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
             let timeToComplete = poseTimeToComplete[index] ?? 0.0
             
             // Ambil data gambar dan joint jika ada
-            let userImage = poseUserImages[index]
-            let jointPositions = poseJointPositions[index]
+            let userImage: UIImage? = isCorrect ? poseUserImages[index] : poseFailureImages[index] ?? poseUserImages[index]
+            let jointPositions: [String: CGPoint]? = isCorrect ? poseJointPositions[index] : poseFailureJoints[index] ?? poseJointPositions[index]
+            
+            // Ambil joint ideal dari poseData.json
+            let idealJointPositions: [String: CGPoint] = pose.joints.mapValues { CGPoint(x: $0.x, y: $0.y) }
             
             // Gunakan placeholder image jika tidak ada gambar
             // TODO: Tambahkan idealPoseImage jika tersedia
@@ -372,7 +383,8 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
                 timeToComplete: timeToComplete,
                 userPoseImage: userImage,
                 idealPoseImage: idealImage,
-                jointPositions: jointPositions
+                jointPositions: jointPositions,
+                idealJointPositions: idealJointPositions
             )
             
             poseDetails.append(poseDetail)
@@ -500,6 +512,25 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
         if phase == .evaluating && poseHadHoldFailure[currentPoseIndex] != true {
             print("❌ poseTimerDidFail: Pose A\(currentPoseIndex+1) gagal pada hold pose (percobaan pertama)")
             poseHadHoldFailure[currentPoseIndex] = true
+            // Mulai timer untuk capture frame ke-5 setelah gagal
+            failureFrameCount = 0
+            failureFrameTimer?.invalidate()
+            failureFrameTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+                guard let self = self else { return }
+                self.failureFrameCount += 1
+                print("[FailureFrame] Counting: \(self.failureFrameCount)")
+                if self.failureFrameCount == 5 {
+                    if let frame = self.poseViewModel.currentFrame {
+                        print("[FailureFrame] Captured frame ke-5 untuk pose A\(self.currentPoseIndex+1)")
+                        self.poseFailureImages[self.currentPoseIndex] = frame
+                        if let joints = self.convertJointPositionsToStringKeys(self.poseViewModel.detectedBodyParts) {
+                            self.poseFailureJoints[self.currentPoseIndex] = joints
+                        }
+                    }
+                    self.failureFrameTimer?.invalidate()
+                    self.failureFrameTimer = nil
+                }
+            }
         }
     }
     

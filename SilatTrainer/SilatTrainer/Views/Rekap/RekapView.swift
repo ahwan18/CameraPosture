@@ -177,7 +177,8 @@ struct RekapLatihanView: View {
                                     
                                     // Overlay untuk joints
                                     if let poseData = trainingResult?.poseDetails[selectedExercise].jointPositions {
-                                        PoseSkeletonOverlayView(jointPositions: poseData)
+                                        let idealJoints = trainingResult?.poseDetails[selectedExercise].idealJointPositions
+                                        PoseSkeletonOverlayView(jointPositions: poseData, idealJointPositions: idealJoints)
                                             .frame(height: 220)
                                     }
                                 }
