@@ -7,8 +7,9 @@ struct StatistikView: View {
     @State private var viewMode: ViewMode = .bulan
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    var navigate: (AppRoute) -> Void
+    //    var navigate: (AppRoute) -> Void
     @State private var showResetConfirmation = false
+    @State private var selected = 1
     
     enum ViewMode {
         case minggu, bulan
@@ -20,7 +21,7 @@ struct StatistikView: View {
             return 10 // Default if no data
         }
         
-        // Round up to next increment of 5 
+        // Round up to next increment of 5
         let increment = 5.0
         return ceil(maxValue / increment) * increment
     }
@@ -42,6 +43,7 @@ struct StatistikView: View {
         return steps
     }
     
+    
     var body: some View {
         ZStack {
             // Background color
@@ -50,23 +52,23 @@ struct StatistikView: View {
             
             VStack(spacing: 0) {
                 // Header with back button
-                HStack {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        HStack {
-                            Image(systemName: "chevron.left")
-                                .foregroundColor(.yellow)
-                            Text("Kembali")
-                                .foregroundColor(.yellow)
-                                .fontWeight(.bold)
-                        }
-                    }
-                    .padding(.leading, 24)
-                    
-                    Spacer()
-                }
-                .padding(.top, 8)
+                //                HStack {
+                //                    Button(action: {
+                //                        dismiss()
+                //                    }) {
+                //                        HStack {
+                //                            Image(systemName: "chevron.left")
+                //                                .foregroundColor(.yellow)
+                //                            Text("Kembali")
+                //                                .foregroundColor(.yellow)
+                //                                .fontWeight(.bold)
+                //                        }
+                //                    }
+                //                    .padding(.leading, 24)
+                //
+                //                    Spacer()
+                //                }
+                //                .padding(.top, 8)
                 
                 // Title
                 HStack {
@@ -88,38 +90,58 @@ struct StatistikView: View {
                     }
                     .padding(.trailing, 24)
                 }
-                .padding(.top, 8)
+                .padding(.top, 25)
                 
-                // View mode selector (Minggu/Bulan)
-                HStack(spacing: 0) {
-                    Button(action: {
-                        viewMode = .minggu
-                        viewModel.loadStatistics(forViewMode: viewMode, using: modelContext)
-                    }) {
-                        Text("Minggu")
-                            .font(.headline)
-                            .foregroundColor(Color("silatC"))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(viewMode == .minggu ? Color(.white) : Color.clear)
-                    }
-                    
-                    Button(action: {
-                        viewMode = .bulan
-                        viewModel.loadStatistics(forViewMode: viewMode, using: modelContext)
-                    }) {
-                        Text("Bulan")
-                            .font(.headline)
-                            .foregroundColor(.black)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(viewMode == .bulan ? Color(.white) : Color.clear)
-                    }
+                //                // View mode selector (Minggu/Bulan)
+                //                HStack(spacing: 0) {
+                //                    Button(action: {
+                //                        viewMode = .minggu
+                //                        viewModel.loadStatistics(forViewMode: viewMode, using: modelContext)
+                //                    }) {
+                //                        Text("Minggu")
+                //                            .font(.headline)
+                //                            .foregroundColor(Color("silatC"))
+                //                            .frame(maxWidth: .infinity)
+                //                            .padding(.vertical, 12)
+                //                            .background(viewMode == .minggu ? Color(.white) : Color.clear)
+                //                    }
+                //
+                //                    Button(action: {
+                //                        viewMode = .bulan
+                //                        viewModel.loadStatistics(forViewMode: viewMode, using: modelContext)
+                //                    }) {
+                //                        Text("Bulan")
+                //                            .font(.headline)
+                //                            .foregroundColor(.black)
+                //                            .frame(maxWidth: .infinity)
+                //                            .padding(.vertical, 12)
+                //                            .background(viewMode == .bulan ? Color(.white) : Color.clear)
+                //                    }
+                //                }
+                //                .background(Color(.darkGray).opacity(0.4))
+                //                .cornerRadius(8)
+                //                .padding(.horizontal, 24)
+                //                .padding(.top, 16)
+                
+                Picker(selection: $selected, label: Text("Picker")) {
+                    Text("Minggu").tag(1)
+                    Text("Bulan").tag(2)
                 }
-                .background(Color(.darkGray).opacity(0.4))
-                .cornerRadius(8)
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
+                .pickerStyle(SegmentedPickerStyle())
+                .onAppear {
+                    UISegmentedControl.appearance().backgroundColor = .segmentedBackground
+                    UISegmentedControl.appearance().selectedSegmentTintColor = .white
+                    UISegmentedControl.appearance().setTitleTextAttributes([.foregroundColor: UIColor.gray], for: .normal)
+                    UISegmentedControl.appearance().setTitleTextAttributes([.foregroundColor: UIColor.segmentedBackground], for: .selected)
+                }
+                .onChange(of: selected) { newValue in
+                    // Change viewMode based on selected value
+                    viewMode = (newValue == 1) ? .minggu : .bulan
+                    viewModel.loadStatistics(forViewMode: viewMode, using: modelContext)
+                }
+                
                 
                 // Progress section
                 VStack(spacing: 8) {
@@ -173,7 +195,7 @@ struct StatistikView: View {
                                 }.sorted(by: { $0.pose < $1.pose })
                                 
                                 // Calculate Y-axis range
-                                let maxValue = (chartData.map { $0.value }.max() ?? 0) 
+                                let maxValue = (chartData.map { $0.value }.max() ?? 0)
                                 let yAxisMax = calculateYAxisMax(maxValue: maxValue)
                                 let yAxisSteps = calculateYAxisSteps(maxValue: yAxisMax)
                                 
@@ -281,46 +303,46 @@ struct StatistikView: View {
                 
                 Spacer()
                 
-                // Tab Bar
-                HStack {
-                    Spacer()
-                    
-                    // Latihan Tab
-                    Button(action: {
-                        navigate(.latihan)
-                    }) {
-                        VStack {
-                            Image(systemName: "figure.martial.arts")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 30, height: 30)
-                            
-                            Text("Latihan")
-                                .font(.caption)
-                        }
-                        .foregroundColor(.gray)
-                        .frame(maxWidth: .infinity)
-                    }
-                    
-                    Spacer()
-                    
-                    // Ringkasan Tab (currently active)
-                    VStack {
-                        Image(systemName: "star")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 30, height: 30)
-                        
-                        Text("Ringkasan")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.yellow)
-                    .frame(maxWidth: .infinity)
-                    
-                    Spacer()
-                }
-                .padding(.vertical, 10)
-                .background(Color.black)
+                //                // Tab Bar
+                //                HStack {
+                //                    Spacer()
+                //
+                //                    // Latihan Tab
+                //                    Button(action: {
+                //                        navigate(.latihan)
+                //                    }) {
+                //                        VStack {
+                //                            Image(systemName: "figure.martial.arts")
+                //                                .resizable()
+                //                                .scaledToFit()
+                //                                .frame(width: 30, height: 30)
+                //
+                //                            Text("Latihan")
+                //                                .font(.caption)
+                //                        }
+                //                        .foregroundColor(.gray)
+                //                        .frame(maxWidth: .infinity)
+                //                    }
+                //
+                //                    Spacer()
+                //
+                //                    // Ringkasan Tab (currently active)
+                //                    VStack {
+                //                        Image(systemName: "star")
+                //                            .resizable()
+                //                            .scaledToFit()
+                //                            .frame(width: 30, height: 30)
+                //
+                //                        Text("Ringkasan")
+                //                            .font(.caption)
+                //                    }
+                //                    .foregroundColor(.yellow)
+                //                    .frame(maxWidth: .infinity)
+                //
+                //                    Spacer()
+                //                }
+                //                .padding(.vertical, 10)
+                //                .background(Color.black)
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -362,6 +384,6 @@ struct BarData {
     
     container.mainContext.insert(session1)
     
-    return StatistikView(navigate: { _ in })
+    return StatistikView(/*navigate: { _ in }*/)
         .modelContainer(container)
-} 
+}
