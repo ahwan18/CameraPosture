@@ -226,32 +226,17 @@ struct LatihanView: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
-                        
-                        // Button to finish or skip the current training
-                        Button(action: {
-                            // Save training data before navigating
-                            latihanVM.saveTrainingSession(to: modelContext)
-                            navigate(.finish)
-                        }) {
-                            Text(latihanVM.showCompletionMessage ? "Selesai" : "")
-                        }
-                        .padding(.top, 10)
-                    } else if !latihanVM.showPoseTransition {
-                        // Content for positioning and countdown phases - simplified without redundant timer
-                        HStack {
-                            Spacer()
-                        
-                            // Button to finish or skip the current training
-                            Button(action: {
-                                navigate(.finish)
-                            }) {
-                                Text(latihanVM.showCompletionMessage ? "Selesai" : "")
-                            }
-                            .padding(.top, 10)
-                        }
-                        .padding(.vertical, 10)
-                        .animation(.easeInOut, value: latihanVM.phase)
                     }
+                }
+                
+                if latihanVM.showFirstPoseView {
+                    PosePertamaView()
+                    .transition(.opacity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black)
+                    .zIndex(999)
+                    .position(x: UIScreen.main.bounds.width/2, y: UIScreen.main.bounds.height/2)
+                    .edgesIgnoringSafeArea(.all)
                 }
                 
                 // Pose transition overlay - shown between poses
@@ -349,6 +334,53 @@ struct LatihanView: View {
                                     .aspectRatio(contentMode: .fit)
                                     .frame(maxWidth: .infinity, maxHeight: 600)
                             }
+                        }
+                        
+                        Spacer()
+                    }
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+            }
+            .ignoresSafeArea(.all)
+            .edgesIgnoringSafeArea(.all)
+        }
+    }
+    
+    struct PosePertamaView: View {
+        // The number of the upcoming pose
+        
+        var body: some View {
+            GeometryReader { geometry in
+                ZStack {
+                    // Solid background (not transparent)
+                    Color.black
+                        .ignoresSafeArea()
+                    
+                    VStack {
+                        // Header spacing for consistency with main view
+                        HStack {
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .frame(height: 120)
+                        
+                        
+                        VStack(spacing: 30) {
+                            // Transition header
+                            Text("Gerakan Pertama")
+                                .font(.system(size: 36, weight: .bold))
+                                .foregroundColor(.white)
+                            
+                            // Pose identifier
+                            Text("A1")
+                                .font(.system(size: 50, weight: .bold))
+                                .foregroundColor(.yellow)
+                            
+                            // Pose reference image (if available)
+                                Image("A1")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: .infinity, maxHeight: 600)
                         }
                         
                         Spacer()

@@ -19,7 +19,8 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     @Published var holdProgress: Double = 0.0       // Progress of holding the current pose (0.0 to 1.0)
     @Published var countdownValue: Int = 8          // Countdown seconds for holding a pose
     @Published var showCompletionMessage: Bool = false  // Whether to show completion message
-    @Published var showPoseTransition: Bool = false     // Whether transitioning between poses
+    @Published var showPoseTransition: Bool = false
+    @Published var showFirstPoseView: Bool = false     // Whether transitioning between poses
     @Published var isAtOptimalDistance: Bool = true     // Whether user is at optimal distance for detection
     @Published var poseName: String = "A1"              // Current pose name for display
     @Published var isMuted: Bool = false               // Whether voice instructions are muted
@@ -73,6 +74,8 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     private var sessionPauseTime: TimeInterval = 0      // Time accumulated before pause
     private var actualTrainingStartTime: Date?          // When user actually started training (after fitting box)
     private var actualTrainingEndTime: Date?            // When user actually ended training (after fitting box)
+
+    private var isFirstPoseAnnouncementPlaying: Bool = false // Track if the first pose announcement is currently playing
     
     //   - Computed Properties
 
@@ -175,6 +178,10 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     /// Evaluates the detected pose against the target pose and provides feedback
     private func evaluatePose() {
         // Skip evaluation if paused
+        if isFirstPoseAnnouncementPlaying {
+            return // Jangan evaluasi pose dulu
+        }
+
         if isPaused {
             return
         }
@@ -658,6 +665,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
             if self.positioningCountdownValue <= 0 {
                 self.countdownTimer?.invalidate()
                 self.phase = .evaluating
+                print("MASUK KESIINIIII")
                 
                 // Cek sekali lagi apakah data sudah tersimpan
                 if self.poseUserImages[self.currentPoseIndex] == nil {
@@ -685,7 +693,14 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
                 }
                 
                 if !self.isMuted {
-                    self.voiceFeedbackManager.speak("Mulai!", interrupt: true)
+                    print("INI LAGIII DI POSE \(poseTransitionCount)")
+                    showFirstPoseView = true
+                    self.isFirstPoseAnnouncementPlaying = true
+                    self.voiceFeedbackManager.speak("Mulai gerakan pertama!", interrupt: false) {
+                        self.isFirstPoseAnnouncementPlaying = false
+                        self.showFirstPoseView = false
+                    }
+                    // zzz
                 }
             }
         }
