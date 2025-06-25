@@ -57,7 +57,8 @@ struct HomeView: View {
                     // Title Section
                     VStack(spacing: 5) {
                         Text("SIRAJ")
-                            .font(.system(size: 60, weight: .bold))
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
                             .foregroundColor(.white)
                         
                         Text("Latih Jurus Tunggal")
