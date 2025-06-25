@@ -67,6 +67,9 @@ class StatistikViewModel: ObservableObject {
                     let index = result.poseNumber - 1
                     
                     // Count only successful poses
+                    // Note: The bar chart only displays poses that were successfully completed on first attempt
+                    // without needing to retry during the hold phase. This corresponds to the poseHadHoldFailure=false
+                    // in the LatihanViewModel, which then sets isCorrect=true in the PoseResult model
                     if result.isCorrect {
                         poseSuccessCount[index] += 1
                     }

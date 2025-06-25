@@ -252,18 +252,21 @@ struct LatihanView: View {
                         .padding(.vertical, 10)
                         .animation(.easeInOut, value: latihanVM.phase)
                     }
-                    
-                    // Pose transition overlay - shown between poses
-                    if latihanVM.showPoseTransition {
-                        let poseTransitionView = PoseTransitionView(
-                            poseNumber: latihanVM.currentPoseIndex + 2,
-                            targetPose: latihanVM.nextTargetPose,
-                            sessionElapsedTime: latihanVM.sessionElapsedTime
-                        )
-                        poseTransitionView
-                            .transition(.opacity)
-                            .zIndex(10)
-                    }
+                }
+                
+                // Pose transition overlay - shown between poses
+                if latihanVM.showPoseTransition {
+                    PoseTransitionView(
+                        poseNumber: latihanVM.currentPoseIndex + 2,
+                        targetPose: latihanVM.nextTargetPose,
+                        sessionElapsedTime: latihanVM.sessionElapsedTime
+                    )
+                    .transition(.opacity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black)
+                    .zIndex(999)
+                    .position(x: UIScreen.main.bounds.width/2, y: UIScreen.main.bounds.height/2)
+                    .edgesIgnoringSafeArea(.all)
                 }
             }
         }
@@ -313,49 +316,48 @@ struct LatihanView: View {
         let sessionElapsedTime: String
         
         var body: some View {
-            ZStack {
-                // Dimmed background for focus
-                Color.black.opacity(0.9)
-                    .ignoresSafeArea()
-                
-                VStack {
-                    // Header spacing for consistency with main view
-                    HStack {
+            GeometryReader { geometry in
+                ZStack {
+                    // Solid background (not transparent)
+                    Color.black
+                        .ignoresSafeArea()
+                    
+                    VStack {
+                        // Header spacing for consistency with main view
+                        HStack {
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .frame(height: 120)
+                        
+                        
+                        VStack(spacing: 30) {
+                            // Transition header
+                            Text("Gerakan Berikutnya")
+                                .font(.system(size: 36, weight: .bold))
+                                .foregroundColor(.white)
+                            
+                            // Pose identifier
+                            Text("A\(poseNumber)")
+                                .font(.system(size: 50, weight: .bold))
+                                .foregroundColor(.yellow)
+                            
+                            // Pose reference image (if available)
+                            if targetPose != nil {
+                                Image("A\(poseNumber)")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: .infinity, maxHeight: 600)
+                            }
+                        }
+                        
                         Spacer()
                     }
-                    .padding(.horizontal, 20)
-                    .frame(height: 120)
-                    
-                    Spacer()
-                    
-                    VStack(spacing: 30) {
-                        // Transition header
-                        Text("Gerakan Berikutnya")
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        // Pose identifier
-                        Text("A\(poseNumber)")
-                            .font(.system(size: 50, weight: .bold))
-                            .foregroundColor(.yellow)
-                        
-                        // Pose reference image (if available)
-                        if targetPose != nil {
-                            Image("a\(poseNumber)")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 600)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .fill(Color.white.opacity(0.1))
-                                )
-                                .padding(.horizontal, 40)
-                        }
-                    }
-                    
-                    Spacer()
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height)
             }
+            .ignoresSafeArea(.all)
+            .edgesIgnoringSafeArea(.all)
         }
     }
 }
