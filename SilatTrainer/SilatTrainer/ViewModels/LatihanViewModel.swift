@@ -549,18 +549,28 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
             return true
         }
         
-        let timeSinceCorrection = Date().timeIntervalSince(lastCorrectionTime)
-        let isInGracePeriod = timeSinceCorrection < correctionGracePeriod
+        // For pose A5 and A6, provide more lenient validation to help user succeed
+        let isA5Pose = currentPoseIndex == 4
+        let isA6Pose = currentPoseIndex == 5
+        let needsLenientValidation = isA5Pose || isA6Pose
         
-        let isValid = isAtOptimalDistance && poseMatcher.checkPoseMatch(currentPoseIndex: currentPoseIndex) && !isInGracePeriod
+        let timeSinceCorrection = Date().timeIntervalSince(lastCorrectionTime)
+        // Give extra tolerance time for pose A5/A6 before considering it invalid
+        let correctionGracePeriodForPose = needsLenientValidation ? correctionGracePeriod * 1.5 : correctionGracePeriod
+        let isInGracePeriod = timeSinceCorrection < correctionGracePeriodForPose
+        
+        // For A5 and A6, be a bit more lenient with position requirements if they're already matched once
+        let isPoseValid = isAtOptimalDistance && 
+                          (needsLenientValidation && holdProgress > 0.25 ? true : poseMatcher.checkPoseMatch(currentPoseIndex: currentPoseIndex)) && 
+                          !isInGracePeriod
         
         // Hanya log jika status validasi berubah
-        if isValid != lastPoseValidStatus {
-            print("isPoseStillValid: \(isValid), poseIndex: \(currentPoseIndex), atOptimalDistance: \(isAtOptimalDistance)")
-            lastPoseValidStatus = isValid
+        if isPoseValid != lastPoseValidStatus {
+            print("isPoseStillValid: \(isPoseValid), poseIndex: \(currentPoseIndex), atOptimalDistance: \(isAtOptimalDistance)")
+            lastPoseValidStatus = isPoseValid
         }
         
-        return isValid
+        return isPoseValid
     }
     
     //   - Private Helpers

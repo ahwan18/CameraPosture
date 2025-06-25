@@ -135,17 +135,14 @@ struct RekapLatihanView: View {
                         
                         // TODO: Tambahkan gambar pose ideal di sini
                         // Untuk saat ini kosongkan dengan background putih
-                        Rectangle()
-                            .fill(Color.white)
+                        Image("A\(selectedExercise + 1)")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .background(Color.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 220)
                             .cornerRadius(15)
                             .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
-                            .overlay(
-                                Text("Gambar pose ideal akan ditambahkan")
-                                    .foregroundColor(.gray)
-                                    .font(.system(size: 14))
-                            )
                     }
                     
                     // Secondary exercise card - User's Pose
