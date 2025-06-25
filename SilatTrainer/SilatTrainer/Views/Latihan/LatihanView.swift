@@ -304,7 +304,7 @@ struct LatihanView: View {
             GeometryReader { geometry in
                 ZStack {
                     // Solid background (not transparent)
-                    Color.black
+                    Color.silatD
                         .ignoresSafeArea()
                     
                     VStack {
@@ -313,7 +313,7 @@ struct LatihanView: View {
                             Spacer()
                         }
                         .padding(.horizontal, 20)
-                        .frame(height: 120)
+                        .frame(height: 100)
                         
                         
                         VStack(spacing: 30) {
@@ -333,6 +333,8 @@ struct LatihanView: View {
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
                                     .frame(maxWidth: .infinity, maxHeight: 600)
+                                    .padding(.horizontal, 30)
+                                    .padding(.bottom, 70)
                             }
                         }
                         
@@ -353,7 +355,7 @@ struct LatihanView: View {
             GeometryReader { geometry in
                 ZStack {
                     // Solid background (not transparent)
-                    Color.black
+                    Color.silatD
                         .ignoresSafeArea()
                     
                     VStack {
@@ -362,7 +364,7 @@ struct LatihanView: View {
                             Spacer()
                         }
                         .padding(.horizontal, 20)
-                        .frame(height: 120)
+                        .frame(height: 100)
                         
                         
                         VStack(spacing: 30) {
@@ -381,6 +383,8 @@ struct LatihanView: View {
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
                                     .frame(maxWidth: .infinity, maxHeight: 600)
+                                    .padding(.horizontal, 30)
+                                    .padding(.bottom, 70)
                         }
                         
                         Spacer()
