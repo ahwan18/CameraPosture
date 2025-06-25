@@ -345,29 +345,29 @@ struct PoseOverlayView: View {
                         let cornerColor = isUserPositioned ? Color.green : Color.red
                         
                         // Top-left corner
-                        CornerShape(corner: .topLeft)
-                            .stroke(cornerColor, lineWidth: 16)
+                        CornerShape(corner: .topLeft, cornerRadius: 16) // Radius 16 untuk corner yang lebih tumpul
+                            .stroke(cornerColor, style: StrokeStyle(lineWidth: 11, lineCap: .round))
                             .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
                             .position(x: boxRect.minX + boxRect.width * 0.1,
                                      y: boxRect.minY + boxRect.height * 0.1)
-                        
+
                         // Top-right corner
-                        CornerShape(corner: .topRight)
-                            .stroke(cornerColor, lineWidth: 16)
+                        CornerShape(corner: .topRight, cornerRadius: 16)
+                            .stroke(cornerColor, style: StrokeStyle(lineWidth: 11, lineCap: .round))
                             .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
                             .position(x: boxRect.maxX - boxRect.width * 0.1,
                                      y: boxRect.minY + boxRect.height * 0.1)
-                        
+
                         // Bottom-left corner
-                        CornerShape(corner: .bottomLeft)
-                            .stroke(cornerColor, lineWidth: 16)
+                        CornerShape(corner: .bottomLeft, cornerRadius: 16)
+                            .stroke(cornerColor, style: StrokeStyle(lineWidth: 11, lineCap: .round))
                             .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
                             .position(x: boxRect.minX + boxRect.width * 0.1,
                                      y: boxRect.maxY - boxRect.height * 0.1)
-                        
+
                         // Bottom-right corner
-                        CornerShape(corner: .bottomRight)
-                            .stroke(cornerColor, lineWidth: 16)
+                        CornerShape(corner: .bottomRight, cornerRadius: 16)
+                            .stroke(cornerColor, style: StrokeStyle(lineWidth: 11, lineCap: .round))
                             .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
                             .position(x: boxRect.maxX - boxRect.width * 0.1,
                                      y: boxRect.maxY - boxRect.height * 0.1)
@@ -553,7 +553,6 @@ struct PoseOverlayView: View {
     }
 }
 
-/// A shape that draws just the corner of a rectangle
 struct CornerShape: Shape {
     enum Corner {
         case topLeft
@@ -563,26 +562,72 @@ struct CornerShape: Shape {
     }
     
     let corner: Corner
+    let cornerRadius: CGFloat // Parameter baru untuk corner radius
+    
+    // Initializer dengan corner radius default
+    init(corner: Corner, cornerRadius: CGFloat = 12) {
+        self.corner = corner
+        self.cornerRadius = cornerRadius
+    }
     
     func path(in rect: CGRect) -> Path {
         var path = Path()
         
         switch corner {
         case .topLeft:
+            // Start from left side, going down
             path.move(to: CGPoint(x: 0, y: rect.height * 0.6))
-            path.addLine(to: CGPoint(x: 0, y: 0))
+            path.addLine(to: CGPoint(x: 0, y: cornerRadius))
+            
+            // Add rounded corner
+            path.addQuadCurve(
+                to: CGPoint(x: cornerRadius, y: 0),
+                control: CGPoint(x: 0, y: 0)
+            )
+            
+            // Continue to right
             path.addLine(to: CGPoint(x: rect.width * 0.6, y: 0))
+            
         case .topRight:
+            // Start from left side of top
             path.move(to: CGPoint(x: rect.width * 0.4, y: 0))
-            path.addLine(to: CGPoint(x: rect.width, y: 0))
+            path.addLine(to: CGPoint(x: rect.width - cornerRadius, y: 0))
+            
+            // Add rounded corner
+            path.addQuadCurve(
+                to: CGPoint(x: rect.width, y: cornerRadius),
+                control: CGPoint(x: rect.width, y: 0)
+            )
+            
+            // Continue down
             path.addLine(to: CGPoint(x: rect.width, y: rect.height * 0.6))
+            
         case .bottomLeft:
+            // Start from top of left side
             path.move(to: CGPoint(x: 0, y: rect.height * 0.4))
-            path.addLine(to: CGPoint(x: 0, y: rect.height))
+            path.addLine(to: CGPoint(x: 0, y: rect.height - cornerRadius))
+            
+            // Add rounded corner
+            path.addQuadCurve(
+                to: CGPoint(x: cornerRadius, y: rect.height),
+                control: CGPoint(x: 0, y: rect.height)
+            )
+            
+            // Continue to right
             path.addLine(to: CGPoint(x: rect.width * 0.6, y: rect.height))
+            
         case .bottomRight:
+            // Start from left side of bottom
             path.move(to: CGPoint(x: rect.width * 0.4, y: rect.height))
-            path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+            path.addLine(to: CGPoint(x: rect.width - cornerRadius, y: rect.height))
+            
+            // Add rounded corner
+            path.addQuadCurve(
+                to: CGPoint(x: rect.width, y: rect.height - cornerRadius),
+                control: CGPoint(x: rect.width, y: rect.height)
+            )
+            
+            // Continue up
             path.addLine(to: CGPoint(x: rect.width, y: rect.height * 0.4))
         }
         
