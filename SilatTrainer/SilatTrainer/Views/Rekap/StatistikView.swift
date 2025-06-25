@@ -183,7 +183,7 @@ struct StatistikView: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
                                 
-                                Text("Jumlah keberhasilan gerakan tanpa mengulang")
+                                Text("Jumlah keberhasilan gerakan tanpa mengulang saat fase menahan")
                                     .font(.caption)
                                     .foregroundColor(.white.opacity(0.8))
                             }

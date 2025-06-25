@@ -870,14 +870,18 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
             let poseName = "A\(i+1)"
             let wasCompleted = i <= currentPoseIndex
             
-            // For simplicity, we'll consider poses the user got to as completed correctly
-            // In a real app, you might track more detailed success metrics
+            // A pose is correct only if:
+            // 1. The user got to this pose (wasCompleted), AND
+            // 2. The pose didn't have a hold failure on first attempt (poseHadHoldFailure is false)
+            let hadHoldFailure = poseHadHoldFailure[i] ?? false
+            let isCorrect = wasCompleted && !hadHoldFailure
+            
             let holdDuration = wasCompleted ? 8.0 : 0.0 // 8 seconds is our target hold time
             
             let poseResult = PoseResult(
                 poseName: poseName,
                 poseNumber: i+1,
-                isCorrect: wasCompleted,
+                isCorrect: isCorrect,
                 holdDuration: holdDuration
             )
             poseResults.append(poseResult)
