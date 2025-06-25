@@ -20,7 +20,7 @@ struct PoseOverlayView: View {
     let targetPose: PoseData?
     let showGuideArrows: Bool
     let showFittingBox: Bool
-    let fittingBoxRect = CGRect(x: 0.15, y: 0.25, width: 0.7, height: 0.7) // Moved down to y: 0.25
+    let fittingBoxRect = CGRect(x: 0.10, y: 0.25, width: 0.8, height: 0.7) // Moved down to y: 0.25
     let isUserPositioned: Bool
     let isPositioningPhase: Bool // Added parameter to check for positioning phase
     
@@ -287,19 +287,11 @@ struct PoseOverlayView: View {
             // 2. Membuat lapisan ZStack untuk menggambar sendi dan koneksi
             ZStack {
                 
+                // Ganti bagian showFittingBox dengan kode ini:
+
+                // Alternatif jika mask tidak bekerja - menggunakan 4 rectangle terpisah:
+
                 if showFittingBox {
-                    // Add black & white overlay effect for areas outside the rectangle
-                    if isPositioningPhase {
-                        // Full screen black & white overlay
-                        Rectangle()
-                            .fill(Color.black.opacity(0.5))
-                            .background(.ultraThinMaterial)
-                            .saturation(0) // Remove colors for black & white effect
-                            .contrast(1.2) // Increase contrast slightly
-                            .brightness(-0.1) // Make it slightly darker
-                            .ignoresSafeArea()
-                    }
-                    
                     let boxRect = CGRect(
                         x: fittingBoxRect.origin.x * geometry.size.width,
                         y: fittingBoxRect.origin.y * geometry.size.height,
@@ -307,23 +299,38 @@ struct PoseOverlayView: View {
                         height: fittingBoxRect.height * geometry.size.height
                     )
                     
-                    // Create a window in the overlay if in positioning phase
-                    if isPositioningPhase {
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: boxRect.width, height: boxRect.height)
-                            .position(x: boxRect.midX, y: boxRect.midY)
-                            .blendMode(.destinationOut)
-                    }
+                    // Create selective blur using 4 separate rectangles
+                  
+                        let blurEffect = Rectangle()
+                            .fill(Color.black.opacity(0.5))
+                            .saturation(0)
+                            .contrast(1.2)
+                            .brightness(-0.1)
+                            .ignoresSafeArea()
+                        
+                        // Top rectangle
+                        blurEffect
+                            .frame(width: geometry.size.width, height: boxRect.minY)
+                            .position(x: geometry.size.width/2, y: boxRect.minY/2)
+                        
+                        // Bottom rectangle
+                        blurEffect
+                            .frame(width: geometry.size.width, height: geometry.size.height - boxRect.maxY)
+                            .position(x: geometry.size.width/2, y: boxRect.maxY + (geometry.size.height - boxRect.maxY)/2)
+                        
+                        // Left rectangle
+                        blurEffect
+                            .frame(width: boxRect.minX, height: boxRect.height)
+                            .position(x: boxRect.minX/2, y: boxRect.midY)
+                        
+                        // Right rectangle
+                        blurEffect
+                            .frame(width: geometry.size.width - boxRect.maxX, height: boxRect.height)
+                            .position(x: boxRect.maxX + (geometry.size.width - boxRect.maxX)/2, y: boxRect.midY)
+                    
                     
                     // Green positioning frame with thicker corners
                     ZStack {
-                        // Main rectangle outline - invisible, just for positioning
-                        Rectangle()
-                            .stroke(Color.clear)
-                            .frame(width: boxRect.width, height: boxRect.height)
-                            .position(x: boxRect.midX, y: boxRect.midY)
-                        
                         // Box text inside the frame
                         Text("Sesuaikan Posisi Anda \n Di Dalam Kotak")
                             .font(.title2)
@@ -341,28 +348,28 @@ struct PoseOverlayView: View {
                         CornerShape(corner: .topLeft)
                             .stroke(cornerColor, lineWidth: 16)
                             .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
-                            .position(x: boxRect.minX + boxRect.width * 0.1, 
+                            .position(x: boxRect.minX + boxRect.width * 0.1,
                                      y: boxRect.minY + boxRect.height * 0.1)
                         
                         // Top-right corner
                         CornerShape(corner: .topRight)
                             .stroke(cornerColor, lineWidth: 16)
                             .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
-                            .position(x: boxRect.maxX - boxRect.width * 0.1, 
+                            .position(x: boxRect.maxX - boxRect.width * 0.1,
                                      y: boxRect.minY + boxRect.height * 0.1)
                         
                         // Bottom-left corner
                         CornerShape(corner: .bottomLeft)
                             .stroke(cornerColor, lineWidth: 16)
                             .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
-                            .position(x: boxRect.minX + boxRect.width * 0.1, 
+                            .position(x: boxRect.minX + boxRect.width * 0.1,
                                      y: boxRect.maxY - boxRect.height * 0.1)
                         
                         // Bottom-right corner
                         CornerShape(corner: .bottomRight)
                             .stroke(cornerColor, lineWidth: 16)
                             .frame(width: boxRect.width * 0.2, height: boxRect.height * 0.2)
-                            .position(x: boxRect.maxX - boxRect.width * 0.1, 
+                            .position(x: boxRect.maxX - boxRect.width * 0.1,
                                      y: boxRect.maxY - boxRect.height * 0.1)
                     }
                 }

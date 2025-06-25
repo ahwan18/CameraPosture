@@ -73,7 +73,8 @@ struct StatistikView: View {
                 // Title
                 HStack {
                     Text("Ringkasan \(viewModel.selectedJurus)")
-                        .font(.system(size: 34, weight: .bold))
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
                         .foregroundColor(.white)
                         .padding(.leading, 24)
                     
@@ -151,8 +152,10 @@ struct StatistikView: View {
                         .padding(.top, 24)
                     
                     Text("\(viewModel.progressPercentage)%")
-                        .font(.system(size: 48, weight: .bold))
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
                         .foregroundColor(.white)
+                        .padding(.bottom, 12)
                 }
                 
                 // Bar chart section - replacing with Swift Charts
@@ -180,7 +183,7 @@ struct StatistikView: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
                                 
-                                Text("Jumlah keberhasilan gerakan tanpa mengulang")
+                                Text("Jumlah keberhasilan gerakan tanpa mengulang saat fase menahan")
                                     .font(.caption)
                                     .foregroundColor(.white.opacity(0.8))
                             }
@@ -249,7 +252,7 @@ struct StatistikView: View {
                     }
                     .frame(height: 310)
                 }
-                .padding(.horizontal, 1)
+                .padding(.horizontal, 16)
                 .padding(.top, 8)
                 
                 // Metrics cards
@@ -262,7 +265,8 @@ struct StatistikView: View {
                         
                         HStack(alignment: .lastTextBaseline, spacing: 4) {
                             Text("\(viewModel.totalSessions)")
-                                .font(.system(size: 48, weight: .bold))
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
                                 .foregroundColor(.white)
                             
                             Text("sesi")
@@ -273,7 +277,7 @@ struct StatistikView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
-                    .background(Color(.darkGray).opacity(0.2))
+                    .background(Color(UIColor(red: 0.38, green: 0.22, blue: 0.22, alpha: 1.0)))
                     .cornerRadius(12)
                     
                     // Average Duration card
@@ -284,7 +288,8 @@ struct StatistikView: View {
                         
                         HStack(alignment: .lastTextBaseline, spacing: 4) {
                             Text("\(viewModel.averageDuration)")
-                                .font(.system(size: 48, weight: .bold))
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
                                 .foregroundColor(.white)
                             
                             Text("dtk/sesi")
@@ -295,7 +300,7 @@ struct StatistikView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
-                    .background(Color(.darkGray).opacity(0.2))
+                    .background(Color(UIColor(red: 0.38, green: 0.22, blue: 0.22, alpha: 1.0)))
                     .cornerRadius(12)
                 }
                 .padding(.horizontal, 24)
