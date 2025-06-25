@@ -10,23 +10,39 @@ import SwiftUI
 struct FinishView: View {
     @Environment(\.dismiss) var dismiss
     @State private var move: Bool = false
+    @State private var isZoomedIn: Bool = false
     
     var navigate: (AppRoute) -> Void
     var body: some View {
         ZStack {
-            Image(.finishBg)
-                .ignoresSafeArea()
+            if isZoomedIn {
+                Image(.finishBg)
+                    .resizable()
+                    .frame(maxHeight: .infinity)
+                    .scaleEffect(1.15)
+                    .ignoresSafeArea()
+
+            } else {
+                Image(.finishBg2)
+                    .resizable()
+                    .frame(maxHeight: .infinity)
+                    .scaleEffect(1.15)
+                    .ignoresSafeArea()
+
+            }
+            
             
                 Image(.sabukFinish)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 200, height: 200)
+                    .frame(width: 130, height: 180)
                     .padding(.bottom, 200)
-                    .offset(y: -130)
-                    .scaleEffect(move ? 1.07 : 1)
-                    .animation(.linear.repeatForever(autoreverses: true).speed(0.55), value: move)
+                    .offset(y: -85)
+                    .scaleEffect(move ? 1.2 : 1)
+                    .animation(.linear(duration: 2).repeatForever(autoreverses: true).speed(1.3), value: move)
                     .onAppear() {
-                            move = true
+                        move = true
+                        startTogglingBackground()
                     }
 
             
@@ -67,7 +83,16 @@ struct FinishView: View {
         }
         .navigationBarBackButtonHidden(true)
     }
+    
+    func startTogglingBackground() {
+            // Sinkronkan dengan animasi scaleEffect (1.6 detik)
+        Timer.scheduledTimer(withTimeInterval: 1.55, repeats: true) { _ in
+                isZoomedIn.toggle()
+            }
+        }
 }
+
+
 
 #Preview {
     FinishView(navigate: { $0 })
