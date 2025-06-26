@@ -89,12 +89,12 @@ struct LatihanView: View {
                         }) {
                             HStack(spacing: 5) {
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 24, weight: .semibold))
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
                                 Text("Kembali")
-                                    .font(.system(size: 24, weight: .semibold))
+                                    .font(.title3)
                             }
                             .foregroundColor(.yellow)
-                            .shadow(color: .black, radius: 2, x: 0, y: 2)
                         }
                         
                         Spacer()
@@ -103,7 +103,6 @@ struct LatihanView: View {
                         Text("Jurus 1")
                             .font(.system(size: 36, weight: .bold))
                             .foregroundStyle(.black)
-                            .shadow(color: .white, radius: 2, x: 0, y: 2)
                     }
                     .padding(.horizontal, 20)
                     
@@ -116,7 +115,7 @@ struct LatihanView: View {
                                 .frame(width: 140, height: 50)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 16)
-                                        .stroke(Color.black, lineWidth: 3)
+                                        .stroke(Color.black, lineWidth: 2)
                                 )
                             
                             Text(latihanVM.sessionElapsedTime)
@@ -133,7 +132,7 @@ struct LatihanView: View {
                                 .frame(width: 140, height: 50)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 16)
-                                        .stroke(Color.black, lineWidth: 3)
+                                        .stroke(Color.black, lineWidth: 2)
                                 )
                             
                             Text(latihanVM.poseName)
