@@ -124,11 +124,16 @@ class PoseMatcher: PoseMatcherProtocol {
         let averageAngleDifference = validAngles > 0 ? totalAngleDifference / Double(validAngles) : 1.0
         
         // Use more lenient thresholds for pose A5 and A6
-        if currentPoseIndex == 4 || currentPoseIndex == 5 { // A5 or A6
+        if currentPoseIndex == 4 { // A5
             return averageDistance < (poseMatchThreshold * 1.5) &&
                    worstJointDistance < (poseMatchThreshold * 3.5) &&
                    !criticalJointsMismatched &&
                    averageAngleDifference < 0.30
+        } else if currentPoseIndex == 5 { // A6 - even more lenient
+            return averageDistance < (poseMatchThreshold * 2.0) &&
+                   worstJointDistance < (poseMatchThreshold * 4.0) &&
+                   !criticalJointsMismatched &&
+                   averageAngleDifference < 0.40
         } else {
             // Standard thresholds for other poses
             return averageDistance < poseMatchThreshold &&
@@ -266,7 +271,7 @@ class PoseMatcher: PoseMatcherProtocol {
         }
         
         // Special case for A5: reduce importance of troublesome joints
-        if targetPose.id == "pose_05E530CF" { // A5's ID based on poseData.json
+        if targetPose.id == "pose_90023AF1" { // A5's ID based on poseData.json
             if jointName == .rightAnkle || jointName == .rightKnee {
                 importance = 0.3  // Right leg joints are especially hard in A5
             }
@@ -276,12 +281,16 @@ class PoseMatcher: PoseMatcherProtocol {
         }
         
         // Special case for A6: reduce importance of troublesome joints
-        if targetPose.id == "pose_A92E58C7" { // A6's ID based on poseData.json
+        if targetPose.id == "pose_6EC04FA0" { // A6's ID based on poseData.json
             if jointName == .rightWrist || jointName == .rightElbow {
-                importance = 0.3  // Right arm joints are especially hard in A6
+                importance = 0.2  // Right arm joints are especially hard in A6 (decreased from 0.3)
             }
             else if jointName == .leftWrist || jointName == .leftElbow || jointName == .leftAnkle || jointName == .rightAnkle {
-                importance = 0.5  // Make these positions less critical
+                importance = 0.3  // Make these positions less critical (decreased from 0.5)
+            }
+            else {
+                // Make all other joints less important for A6
+                importance = 0.7
             }
         }
         
