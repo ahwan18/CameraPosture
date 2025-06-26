@@ -17,7 +17,7 @@ class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
     @Published var currentPoseIndex: Int = 0
     @Published var isPoseMatched: Bool = false      // Whether the current pose is matched
     @Published var holdProgress: Double = 0.0       // Progress of holding the current pose (0.0 to 1.0)
-    @Published var countdownValue: Int = 8          // Countdown seconds for holding a pose
+    @Published var countdownValue: Int = 5          // Countdown seconds for holding a pose
     @Published var showCompletionMessage: Bool = false  // Whether to show completion message
     @Published var showPoseTransition: Bool = false
     @Published var showFirstPoseView: Bool = false     // Whether transitioning between poses

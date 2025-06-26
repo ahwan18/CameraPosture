@@ -43,7 +43,7 @@ struct RekapLatihanView: View {
                         Text("Durasi")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                            .foregroundColor(.black)
+                            .foregroundColor(.white)
 
                         HStack(alignment: .bottom, spacing: 4) {
                             Text("\(duration)") // Menggunakan data durasi dari hasil training
@@ -67,7 +67,7 @@ struct RekapLatihanView: View {
                         Text("Presisi")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                            .foregroundColor(.black)
+                            .foregroundColor(.white)
 
                         HStack(alignment: .bottom, spacing: 4) {
                             Text("\(correctPoses)/\(totalPoses)") // Menggunakan data presisi dari hasil training
@@ -105,13 +105,14 @@ struct RekapLatihanView: View {
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
                                     .font(.title2)
-                                    .frame(width: 55, height: 55)
+                                    .frame(width: 55, height: 60)
                                     .background(selectedExercise == index ? Color.white : Color.white.opacity(0.4))
                                     .clipShape(Circle())
                                     .overlay(
                                         Circle()
                                             .stroke(isWrong ? Color.red : Color.clear, lineWidth: 4)
                                     )
+                                    .scaleEffect(x: -1, y: 1) 
                             }
                         }
                     }
@@ -137,11 +138,11 @@ struct RekapLatihanView: View {
                         // Untuk saat ini kosongkan dengan background putih
                         Image("A\(selectedExercise + 1)")
                             .resizable()
-                            .aspectRatio(contentMode: .fit)
                             .background(Color.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 220)
                             .cornerRadius(15)
+                            .scaleEffect(1)
                             .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
                     }
                     

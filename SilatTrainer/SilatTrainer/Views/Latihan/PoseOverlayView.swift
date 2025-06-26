@@ -378,61 +378,61 @@ struct PoseOverlayView: View {
                 let userBodyDimensions = calculateBodyDimensions()
                 
                 // Draw target pose connections (blue lines) with adaptive scaling
-                if let targetPose = targetPose {
-                    let targetBodyParts = getTargetBodyParts()
-                    
-                    ForEach(connections) { connection in
-                        if let fromPoint = targetBodyParts[connection.from],
-                           let toPoint = targetBodyParts[connection.to] {
-                            Path { path in
-                                // Transform target points to match user's proportions
-                                let adjustedFromPoint = transformTargetPoint(fromPoint, userBodyDimensions: userBodyDimensions)
-                                let adjustedToPoint = transformTargetPoint(toPoint, userBodyDimensions: userBodyDimensions)
-                                
-                                // Mengonversi koordinat titik ke koordinat tampilan
-                                let fromPointInView = CGPoint(
-                                    x: adjustedFromPoint.x * geometry.size.width,
-                                    y: adjustedFromPoint.y * geometry.size.height
-                                )
-                                let toPointInView = CGPoint(
-                                    x: adjustedToPoint.x * geometry.size.width,
-                                    y: adjustedToPoint.y * geometry.size.height
-                                )
-                                
-                                // Membuat garis dari satu sendi ke sendi lainnya
-                                path.move(to: fromPointInView)
-                                path.addLine(to: toPointInView)
-                            }
-                            .stroke(Color.blue.opacity(0.5), lineWidth: 3) // Garis biru semi-transparan
-                        }
-                    }
-                }
+//                if let targetPose = targetPose {
+//                    let targetBodyParts = getTargetBodyParts()
+//                    
+//                    ForEach(connections) { connection in
+//                        if let fromPoint = targetBodyParts[connection.from],
+//                           let toPoint = targetBodyParts[connection.to] {
+//                            Path { path in
+//                                // Transform target points to match user's proportions
+//                                let adjustedFromPoint = transformTargetPoint(fromPoint, userBodyDimensions: userBodyDimensions)
+//                                let adjustedToPoint = transformTargetPoint(toPoint, userBodyDimensions: userBodyDimensions)
+//                                
+//                                // Mengonversi koordinat titik ke koordinat tampilan
+//                                let fromPointInView = CGPoint(
+//                                    x: adjustedFromPoint.x * geometry.size.width,
+//                                    y: adjustedFromPoint.y * geometry.size.height
+//                                )
+//                                let toPointInView = CGPoint(
+//                                    x: adjustedToPoint.x * geometry.size.width,
+//                                    y: adjustedToPoint.y * geometry.size.height
+//                                )
+//                                
+//                                // Membuat garis dari satu sendi ke sendi lainnya
+//                                path.move(to: fromPointInView)
+//                                path.addLine(to: toPointInView)
+//                            }
+//                            .stroke(Color.blue.opacity(0.5), lineWidth: 3) // Garis biru semi-transparan
+//                        }
+//                    }
+//                }
                 
                 // Draw target pose joints in semi-transparent blue with adaptive scaling
-                if let targetPose = targetPose {
-                    ForEach(Array(targetPose.keyPoints.keys), id: \.self) { jointKey in
-                        if let joint = targetPose.keyPoints[jointKey], let jointName = keyToJointName(jointKey) {
-                            // Transform target point to match user's proportions
-                            let adjustedPoint = transformTargetPoint(joint, userBodyDimensions: userBodyDimensions)
-                            
-                            let targetPoint = CGPoint(
-                                x: adjustedPoint.x * geometry.size.width,
-                                y: adjustedPoint.y * geometry.size.height
-                            )
-                            
-                            Circle()
-                                .fill(Color.blue.opacity(0.5))
-                                .frame(width: 12, height: 12)
-                                .position(targetPoint)
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.blue.opacity(0.5), lineWidth: 2)
-                                        .frame(width: 16, height: 16)
-                                        .position(targetPoint)
-                                )
-                        }
-                    }
-                }
+//                if let targetPose = targetPose {
+//                    ForEach(Array(targetPose.keyPoints.keys), id: \.self) { jointKey in
+//                        if let joint = targetPose.keyPoints[jointKey], let jointName = keyToJointName(jointKey) {
+//                            // Transform target point to match user's proportions
+//                            let adjustedPoint = transformTargetPoint(joint, userBodyDimensions: userBodyDimensions)
+//                            
+//                            let targetPoint = CGPoint(
+//                                x: adjustedPoint.x * geometry.size.width,
+//                                y: adjustedPoint.y * geometry.size.height
+//                            )
+//                            
+//                            Circle()
+//                                .fill(Color.blue.opacity(0.5))
+//                                .frame(width: 12, height: 12)
+//                                .position(targetPoint)
+//                                .overlay(
+//                                    Circle()
+//                                        .stroke(Color.blue.opacity(0.5), lineWidth: 2)
+//                                        .frame(width: 16, height: 16)
+//                                        .position(targetPoint)
+//                                )
+//                        }
+//                    }
+//                }
                 
                 // Menggambar garis koneksi antar sendi (user's current pose)
                 ForEach(connections) { connection in
