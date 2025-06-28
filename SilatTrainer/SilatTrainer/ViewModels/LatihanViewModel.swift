@@ -3,28 +3,24 @@ import SwiftUI
 import Vision
 import SwiftData
 
-/// Represents the different phases of training exercises
 enum LatihanPhase {
-    case positioning  // User is getting into position
-    case countdown    // Countdown before starting the exercise
-    case evaluating   // Evaluating the user's pose against the target pose
+    case positioning
+    case countdown
+    case evaluating
 }
 
-/// ViewModel that manages the training exercise flow, pose matching, timers, and feedback.
-/// Handles user positioning, pose evaluation, and progression through multiple poses.
 class LatihanViewModel: ObservableObject, PoseTimerManagerDelegate {
-    // - Published Properties (for UI)
     @Published var currentPoseIndex: Int = 0
-    @Published var isPoseMatched: Bool = false      // Whether the current pose is matched
-    @Published var holdProgress: Double = 0.0       // Progress of holding the current pose (0.0 to 1.0)
-    @Published var countdownValue: Int = 5          // Countdown seconds for holding a pose
-    @Published var showCompletionMessage: Bool = false  // Whether to show completion message
+    @Published var isPoseMatched: Bool = false
+    @Published var holdProgress: Double = 0.0
+    @Published var countdownValue: Int = 5
+    @Published var showCompletionMessage: Bool = false
     @Published var showPoseTransition: Bool = false
-    @Published var showFirstPoseView: Bool = false     // Whether transitioning between poses
-    @Published var isAtOptimalDistance: Bool = true     // Whether user is at optimal distance for detection
-    @Published var poseName: String = "A1"              // Current pose name for display
-    @Published var isMuted: Bool = false               // Whether voice instructions are muted
-    @Published var isPaused: Bool = false              // Whether the session is paused
+    @Published var showFirstPoseView: Bool = false
+    @Published var isAtOptimalDistance: Bool = true
+    @Published var poseName: String = "A1"
+    @Published var isMuted: Bool = false
+    @Published var isPaused: Bool = false
     
     // - Session timer properties
     @Published var sessionElapsedTime: String = "00:00"  // Formatted elapsed time for display

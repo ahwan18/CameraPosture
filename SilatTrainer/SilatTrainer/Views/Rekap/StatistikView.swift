@@ -4,10 +4,9 @@ import Charts
 
 struct StatistikView: View {
     @StateObject private var viewModel = StatistikViewModel()
-    @State private var viewMode: ViewMode = .bulan
+    @State private var viewMode: ViewMode = .minggu
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    //    var navigate: (AppRoute) -> Void
     @State private var showResetConfirmation = false
     @State private var selected = 1
     
@@ -15,18 +14,15 @@ struct StatistikView: View {
         case minggu, bulan
     }
     
-    // Helper function to calculate an appropriate maximum Y value
     private func calculateYAxisMax(maxValue: Double) -> Double {
         if maxValue <= 0 {
-            return 10 // Default if no data
+            return 10
         }
         
-        // Round up to next increment of 5
         let increment = 5.0
         return ceil(maxValue / increment) * increment
     }
     
-    // Helper function to generate Y-axis step values
     private func calculateYAxisSteps(maxValue: Double) -> [Double] {
         if maxValue <= 0 {
             return [0, 2, 4, 6, 8, 10]
@@ -46,31 +42,11 @@ struct StatistikView: View {
     
     var body: some View {
         ZStack {
-            // Background color
+
             Color("silatB")
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header with back button
-                //                HStack {
-                //                    Button(action: {
-                //                        dismiss()
-                //                    }) {
-                //                        HStack {
-                //                            Image(systemName: "chevron.left")
-                //                                .foregroundColor(.yellow)
-                //                            Text("Kembali")
-                //                                .foregroundColor(.yellow)
-                //                                .fontWeight(.bold)
-                //                        }
-                //                    }
-                //                    .padding(.leading, 24)
-                //
-                //                    Spacer()
-                //                }
-                //                .padding(.top, 8)
-                
-                // Title
                 HStack {
                     Text("Ringkasan \(viewModel.selectedJurus)")
                         .font(.largeTitle)
@@ -80,49 +56,16 @@ struct StatistikView: View {
                     
                     Spacer()
                     
-                    // Reset button
-                    Button(action: {
-                        // Show confirmation alert
-                        showResetConfirmation = true
-                    }) {
-                        Image(systemName: "arrow.counterclockwise.circle")
-                            .font(.system(size: 22))
-                            .foregroundColor(.yellow)
-                    }
-                    .padding(.trailing, 24)
+//                    Button(action: {
+//                        showResetConfirmation = true
+//                    }) {
+//                        Image(systemName: "arrow.counterclockwise.circle")
+//                            .font(.system(size: 22))
+//                            .foregroundColor(.yellow)
+//                    }
+//                    .padding(.trailing, 24)
                 }
                 .padding(.top, 25)
-                
-                //                // View mode selector (Minggu/Bulan)
-                //                HStack(spacing: 0) {
-                //                    Button(action: {
-                //                        viewMode = .minggu
-                //                        viewModel.loadStatistics(forViewMode: viewMode, using: modelContext)
-                //                    }) {
-                //                        Text("Minggu")
-                //                            .font(.headline)
-                //                            .foregroundColor(Color("silatC"))
-                //                            .frame(maxWidth: .infinity)
-                //                            .padding(.vertical, 12)
-                //                            .background(viewMode == .minggu ? Color(.white) : Color.clear)
-                //                    }
-                //
-                //                    Button(action: {
-                //                        viewMode = .bulan
-                //                        viewModel.loadStatistics(forViewMode: viewMode, using: modelContext)
-                //                    }) {
-                //                        Text("Bulan")
-                //                            .font(.headline)
-                //                            .foregroundColor(.black)
-                //                            .frame(maxWidth: .infinity)
-                //                            .padding(.vertical, 12)
-                //                            .background(viewMode == .bulan ? Color(.white) : Color.clear)
-                //                    }
-                //                }
-                //                .background(Color(.darkGray).opacity(0.4))
-                //                .cornerRadius(8)
-                //                .padding(.horizontal, 24)
-                //                .padding(.top, 16)
                 
                 Picker(selection: $selected, label: Text("Picker")) {
                     Text("Minggu").tag(1)
@@ -144,7 +87,6 @@ struct StatistikView: View {
                 }
                 
                 
-                // Progress section
                 VStack(spacing: 8) {
                     Text("Progres Kamu \(viewMode == .bulan ? "Bulan" : "Minggu") Ini")
                         .font(.headline)
@@ -158,25 +100,13 @@ struct StatistikView: View {
                         .padding(.bottom, 12)
                 }
                 
-                // Bar chart section - replacing with Swift Charts
                 VStack(alignment: .leading, spacing: 0) {
-                    // Text("Gerakan \(viewModel.selectedJurus)")
-                    //     .font(.title3)
-                    //     .fontWeight(.semibold)
-                    //     .foregroundColor(.white)
-                    //     .padding(.horizontal, 24)
-                    //     .padding(.top, 16)
-                    //     .padding(.bottom, 8)
-                    
-                    // Chart with background
                     ZStack(alignment: .center) {
-                        // Background
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color(UIColor(red: 0.38, green: 0.22, blue: 0.22, alpha: 1.0)))
                             .padding(.horizontal, 8)
                         
                         VStack(alignment: .leading, spacing: 0) {
-                            // Chart title & description
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Gerakan \(viewModel.selectedJurus)")
                                     .font(.headline)
@@ -189,20 +119,17 @@ struct StatistikView: View {
                             }
                             .padding(.horizontal, 16)
                             .padding(.top, 12)
-                            
-                            // Swift Charts implementation with proper containment
+
                             VStack(spacing: 0) {
                                 let poseData = viewMode == .bulan ? viewModel.monthlyPoseData : viewModel.weeklyPoseData
                                 let chartData = poseData.map { key, value in
                                     return BarData(pose: key, value: Double(value))
                                 }.sorted(by: { $0.pose < $1.pose })
                                 
-                                // Calculate Y-axis range
                                 let maxValue = (chartData.map { $0.value }.max() ?? 0)
                                 let yAxisMax = calculateYAxisMax(maxValue: maxValue)
                                 let yAxisSteps = calculateYAxisSteps(maxValue: yAxisMax)
                                 
-                                // Container to enforce chart boundaries
                                 Chart {
                                     ForEach(chartData, id: \.pose) { item in
                                         BarMark(
@@ -214,7 +141,6 @@ struct StatistikView: View {
                                         .cornerRadius(3)
                                     }
                                     
-                                    // Add a hidden mark to ensure consistent scaling
                                     RuleMark(y: .value("Max", yAxisMax))
                                         .foregroundStyle(.clear)
                                 }
@@ -255,9 +181,7 @@ struct StatistikView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 
-                // Metrics cards
                 HStack(spacing: 16) {
-                    // Total Latihan card
                     VStack(alignment: .leading) {
                         Text("Total Latihan")
                             .font(.headline)
@@ -280,7 +204,6 @@ struct StatistikView: View {
                     .background(Color(UIColor(red: 0.38, green: 0.22, blue: 0.22, alpha: 1.0)))
                     .cornerRadius(12)
                     
-                    // Average Duration card
                     VStack(alignment: .leading) {
                         Text("Durasi")
                             .font(.headline)
@@ -307,47 +230,6 @@ struct StatistikView: View {
                 .padding(.top, 35)
                 
                 Spacer()
-                
-                //                // Tab Bar
-                //                HStack {
-                //                    Spacer()
-                //
-                //                    // Latihan Tab
-                //                    Button(action: {
-                //                        navigate(.latihan)
-                //                    }) {
-                //                        VStack {
-                //                            Image(systemName: "figure.martial.arts")
-                //                                .resizable()
-                //                                .scaledToFit()
-                //                                .frame(width: 30, height: 30)
-                //
-                //                            Text("Latihan")
-                //                                .font(.caption)
-                //                        }
-                //                        .foregroundColor(.gray)
-                //                        .frame(maxWidth: .infinity)
-                //                    }
-                //
-                //                    Spacer()
-                //
-                //                    // Ringkasan Tab (currently active)
-                //                    VStack {
-                //                        Image(systemName: "star")
-                //                            .resizable()
-                //                            .scaledToFit()
-                //                            .frame(width: 30, height: 30)
-                //
-                //                        Text("Ringkasan")
-                //                            .font(.caption)
-                //                    }
-                //                    .foregroundColor(.yellow)
-                //                    .frame(maxWidth: .infinity)
-                //
-                //                    Spacer()
-                //                }
-                //                .padding(.vertical, 10)
-                //                .background(Color.black)
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -365,7 +247,7 @@ struct StatistikView: View {
     }
 }
 
-// Data structure for Chart
+
 struct BarData {
     let pose: String
     let value: Double
@@ -375,7 +257,7 @@ struct BarData {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: TrainingSession.self, PoseResult.self, configurations: config)
     
-    // Add sample data for preview
+
     let session1 = TrainingSession(jurus: "Jurus 1", duration: 180)
     session1.poseResults = [
         PoseResult(poseName: "A1", poseNumber: 1, isCorrect: true, holdDuration: 3.0),
