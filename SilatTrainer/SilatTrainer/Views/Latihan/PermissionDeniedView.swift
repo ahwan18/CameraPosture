@@ -53,7 +53,6 @@ struct PermissionDeniedView: View {
                 
                 
                 Button(action: {
-                    // Buka pengaturan aplikasi
                     if let url = URL(string: UIApplication.openSettingsURLString), UIApplication.shared.canOpenURL(url) {
                         UIApplication.shared.open(url)
                     }

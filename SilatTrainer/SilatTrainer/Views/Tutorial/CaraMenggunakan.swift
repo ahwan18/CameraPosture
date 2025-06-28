@@ -42,16 +42,16 @@ struct CaraMenggunakan: View {
                     Spacer()
                 }
 
-                if let videoURL = Bundle.main.url(forResource: "latihan", withExtension: "mp4") {
+                if let videoURL = Bundle.main.url(forResource: "vidTutor", withExtension: "mp4") {
                      VideoPlayerView(url: videoURL)
-                         .frame(height: 550)
+                        .frame(height: 580)
                     
                  } else {
                      Text("Video not found.")
                          .foregroundColor(.red)
                  }
                 
-                Spacer()
+                Spacer().frame(height: 90)
             }
             .padding(.horizontal, 30)
             

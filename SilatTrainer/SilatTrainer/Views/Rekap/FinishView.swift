@@ -85,7 +85,6 @@ struct FinishView: View {
     }
     
     func startTogglingBackground() {
-            // Sinkronkan dengan animasi scaleEffect (1.6 detik)
         Timer.scheduledTimer(withTimeInterval: 1.55, repeats: true) { _ in
                 isZoomedIn.toggle()
             }

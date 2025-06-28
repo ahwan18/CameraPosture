@@ -44,6 +44,7 @@ struct SilatTrainerApp: App {
                     }
                 }
             }
+            .preferredColorScheme(.light)
             .modelContainer(for: [TrainingSession.self, PoseResult.self])
         }
     }

@@ -3,49 +3,34 @@ import Vision
 import UIKit
 import SwiftData
 
-/// `LatihanView` is the main training view that handles pose detection, matching, and user guidance
-/// This view integrates camera feed, pose overlay, and interactive training elements
 struct LatihanView: View {
-    // Navigation closures for app routing
     var navigate: (AppRoute) -> Void
     var close: () -> Void
+
+    @StateObject private var latihanVM: LatihanViewModel
+    @StateObject private var cameraVM = CameraViewModel()
+    @StateObject private var poseViewModel: PoseEstimationViewModel
     
-    // View models that manage different aspects of the training session
-    @StateObject private var latihanVM: LatihanViewModel           // Manages the training flow and session state
-    @StateObject private var cameraVM = CameraViewModel()          // Handles camera access and configuration
-    @StateObject private var poseViewModel: PoseEstimationViewModel // Processes camera feed for pose detection
     
-    
-    // SwiftData model context
     @Environment(\.modelContext) private var modelContext
     
-    // Alert state
     @State private var showExitConfirmation = false
     
-    // State for showing the tutorial overlay
     @State private var showTutorial = false
     
     
-    /// Initializes the view with navigation handlers and sets up the view models
-    /// - Parameters:
-    ///   - navigate: Closure for navigating to other app routes
-    ///   - close: Closure for closing/exiting the training view
     init(navigate: @escaping (AppRoute) -> Void, close: @escaping () -> Void) {
         self.navigate = navigate
         self.close = close
         
-        // Initialize the pose estimation view model first
         let poseVM = PoseEstimationViewModel()
         _poseViewModel = StateObject(wrappedValue: poseVM)
         
-        // Pass the pose view model to the training view model for coordination
         let latihanViewModel = LatihanViewModel(poseViewModel: poseVM)
         
-        // Set up navigation callback to finish view - pastikan ini berjalan di main thread dan hanya sekali
         latihanViewModel.navigateToFinish = {
             print("LatihanView: navigateToFinish dipanggil, akan navigasi ke .finish")
             
-            // Pastikan navigasi pada main thread
             if Thread.isMainThread {
                 print("Sudah di main thread, navigasi langsung")
                 navigate(.finish)
@@ -68,7 +53,6 @@ struct LatihanView: View {
                 CameraPreviewView(session: cameraVM.session)
                     .ignoresSafeArea()
                 
-                // Overlay that shows detected body parts, connections, and guidance elements
                 PoseOverlayView(
                     bodyParts: poseViewModel.detectedBodyParts,
                     connections: poseViewModel.bodyConnections,
@@ -80,11 +64,8 @@ struct LatihanView: View {
                 )
                 
                 VStack {
-                    // UI changes based on the current training phase
-                    
                     HStack {
                         Button(action: {
-                            // Show confirmation alert instead of closing immediately
                             showExitConfirmation = true
                         }) {
                             HStack(spacing: 5) {
@@ -99,16 +80,13 @@ struct LatihanView: View {
                         
                         Spacer()
                         
-                        // Title on the right - consistent across all phases
                         Text("Jurus 1")
                             .font(.system(size: 36, weight: .bold))
                             .foregroundStyle(.black)
                     }
                     .padding(.horizontal, 20)
                     
-                    // Session timer and pose name in horizontal layout with matching styles - consistent across all phases
                     HStack {
-                        // Timer container with brown background
                         ZStack {
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(Color("silatB"))
@@ -125,7 +103,6 @@ struct LatihanView: View {
                         
                         Spacer()
                         
-                        // Pose name container with matching style
                         ZStack {
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(Color("silatB"))
@@ -146,10 +123,8 @@ struct LatihanView: View {
                     
                     Spacer()
                     
-                    if latihanVM.phase == .evaluating && !latihanVM.showPoseTransition {                        
-                        // Feedback and guidance panel
+                    if latihanVM.phase == .evaluating && !latihanVM.showPoseTransition {
                         VStack(spacing: 10) {
-                            // Distance guidance - informs user if they're at optimal distance
                             HStack {
                                 Image(systemName: latihanVM.isAtOptimalDistance ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                                     .foregroundColor(latihanVM.isAtOptimalDistance ? .green : .orange)
@@ -158,9 +133,7 @@ struct LatihanView: View {
                             }
                             .font(.system(size: 18, weight: .medium))
                             
-                            // Control buttons always visible
                             HStack {
-                                // Mute button on the left side
                                 Button(action: {
                                     latihanVM.toggleMute()
                                 }) {
@@ -174,7 +147,6 @@ struct LatihanView: View {
                                 
                                 Spacer()
                                 
-                                // Play/Pause button on the right side
                                 Button(action: {
                                     latihanVM.togglePause()
                                 }) {
@@ -189,9 +161,7 @@ struct LatihanView: View {
                             .padding(.horizontal, 20)
                             .padding(.vertical, 10)
                             
-                            // Only show pose matching guidance when at optimal distance and not transitioning
                             if latihanVM.isAtOptimalDistance && !latihanVM.showPoseTransition {
-                                // Hold timer and progress when pose is matched
                                 if latihanVM.isPoseMatched {
                                     VStack(spacing: 8) {
                                         ZStack {
@@ -215,7 +185,6 @@ struct LatihanView: View {
                                             }
                                         }
                                         
-                                        // Progress bar for hold duration
                                         ProgressView(value: latihanVM.holdProgress)
                                             .progressViewStyle(LinearProgressViewStyle(tint: .green))
                                             .frame(width: 200)
@@ -238,7 +207,6 @@ struct LatihanView: View {
                     .edgesIgnoringSafeArea(.all)
                 }
                 
-                // Pose transition overlay - shown between poses
                 if latihanVM.showPoseTransition {
                     PoseTransitionView(
                         poseNumber: latihanVM.currentPoseIndex + 2,
@@ -256,30 +224,24 @@ struct LatihanView: View {
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {
-            // Prevent screen from turning off during training
             UIApplication.shared.isIdleTimerDisabled = true
         }
         .onDisappear {
-            // Revert screen timeout settings and clean up resources
             UIApplication.shared.isIdleTimerDisabled = false
             latihanVM.cleanup()
             
-            // Save training data when the view is disappearing
             latihanVM.saveTrainingSession(to: modelContext)
         }
         .task {
-            // Initialize camera when view appears
             await cameraVM.checkPermission()
             cameraVM.delegate = poseViewModel
         }
         .onChange(of: poseViewModel.detectedBodyParts) { _, _ in
-            // Update training state whenever new body parts are detected
             latihanVM.update()
         }
         .alert("Akhiri Latihan?", isPresented: $showExitConfirmation) {
             Button("Batal", role: .cancel) { }
             Button("Akhiri", role: .destructive) {
-                // Mark remaining poses as incorrect before closing
                 latihanVM.markRemainingPosesAsIncorrect()
                 latihanVM.saveTrainingSession(to: modelContext)
                 close()
@@ -289,25 +251,18 @@ struct LatihanView: View {
         }
     }
     
-    /// `PoseTransitionView` displays information about the next pose during transitions
-    /// It shows a fullscreen overlay with the pose number, image, and countdown
     struct PoseTransitionView: View {
-        // The number of the upcoming pose
         let poseNumber: Int
-        // Data for the upcoming pose (optional)
         let targetPose: PoseData?
-        // Current session elapsed time
         let sessionElapsedTime: String
         
         var body: some View {
             GeometryReader { geometry in
                 ZStack {
-                    // Solid background (not transparent)
                     Color.silatD
                         .ignoresSafeArea()
                     
                     VStack {
-                        // Header spacing for consistency with main view
                         HStack {
                             Spacer()
                         }
@@ -316,17 +271,14 @@ struct LatihanView: View {
                         
                         
                         VStack(spacing: 30) {
-                            // Transition header
                             Text("Gerakan Berikutnya")
                                 .font(.system(size: 36, weight: .bold))
                                 .foregroundColor(.white)
                             
-                            // Pose identifier
                             Text("A\(poseNumber)")
                                 .font(.system(size: 50, weight: .bold))
                                 .foregroundColor(.yellow)
                             
-                            // Pose reference image (if available)
                             if targetPose != nil {
                                 Image("A\(poseNumber)")
                                     .resizable()
@@ -348,17 +300,14 @@ struct LatihanView: View {
     }
     
     struct PosePertamaView: View {
-        // The number of the upcoming pose
         
         var body: some View {
             GeometryReader { geometry in
                 ZStack {
-                    // Solid background (not transparent)
                     Color.silatD
                         .ignoresSafeArea()
                     
                     VStack {
-                        // Header spacing for consistency with main view
                         HStack {
                             Spacer()
                         }
@@ -367,17 +316,14 @@ struct LatihanView: View {
                         
                         
                         VStack(spacing: 30) {
-                            // Transition header
                             Text("Gerakan Pertama")
                                 .font(.system(size: 36, weight: .bold))
                                 .foregroundColor(.white)
                             
-                            // Pose identifier
                             Text("A1")
                                 .font(.system(size: 50, weight: .bold))
                                 .foregroundColor(.yellow)
                             
-                            // Pose reference image (if available)
                                 Image("A1")
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
